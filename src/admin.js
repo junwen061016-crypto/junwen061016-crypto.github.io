@@ -1,6 +1,7 @@
-import { auth, db } from "./firebase.js";
+import { auth, db, rtdb } from "./firebase.js";
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, updateDoc, collection, deleteDoc, onSnapshot } from "firebase/firestore";
+import { getDatabase, ref, set, get } from "firebase/database";
 
 // 後台登入
 document.getElementById("btn-admin-login").addEventListener("click", async () => {
@@ -82,6 +83,7 @@ function initAdminDashboard() {
       }
     };
   }
+
   // 重新開啟賓果遊戲
   const btnRestartBingo = document.getElementById("btn-restart-bingo");
   if (btnRestartBingo) {
@@ -115,7 +117,74 @@ function initAdminDashboard() {
     };
   }
 
-  // 切換遊戲開關按鈕
+  // ================= 25 格賓果題目設定 (Realtime Database) =================
+  const container = document.getElementById("bingo-questions-form");
+  if (container) {
+    container.innerHTML = ""; // 清空舊內容
+    container.style.display = "grid";
+    container.style.gridTemplateColumns = "repeat(5, 1fr)";
+    container.style.gap = "10px";
+    container.style.marginTop = "10px";
+
+    for (let i = 1; i <= 25; i++) {
+      const wrapper = document.createElement("div");
+      wrapper.style.display = "flex";
+      wrapper.style.flexDirection = "column";
+      
+      const label = document.createElement("span");
+      label.innerText = `第 ${i} 格`;
+      label.style.fontSize = "12px";
+      label.style.marginBottom = "2px";
+      label.style.color = "#555";
+
+      const input = document.createElement("input");
+      input.type = "text";
+      input.id = `q-${i}`;
+      input.placeholder = `輸入題目`;
+      input.style.padding = "6px";
+      input.style.width = "100%";
+      input.style.boxSizing = "border-box";
+
+      wrapper.appendChild(label);
+      wrapper.appendChild(input);
+      container.appendChild(wrapper);
+    }
+
+    // 從 Realtime Database 載入現有題目
+    //const rtdb = getDatabase();
+    const questionsRef = ref(rtdb, "config/bingo_questions");
+    get(questionsRef).then((snapshot) => {
+      if (snapshot.exists()) {
+        const questions = snapshot.val();
+        questions.forEach((q, index) => {
+          const inputField = document.getElementById(`q-${index + 1}`);
+          if (inputField) inputField.value = q;
+        });
+      }
+    });
+
+    // 點擊「儲存所有賓果題目」按鈕
+    const saveBtn = document.getElementById("btn-save-questions");
+    if (saveBtn) {
+      saveBtn.onclick = async () => {
+        let questionsArray = [];
+        for (let i = 1; i <= 25; i++) {
+          const val = document.getElementById(`q-${i}`).value.trim();
+          questionsArray.push(val || `題目 ${i}`);
+        }
+
+        try {
+          await set(ref(rtdb, "config/bingo_questions"), questionsArray);
+          alert("25格賓果題目儲存成功！");
+        } catch (error) {
+          console.error("儲存失敗：", error);
+          alert("儲存失敗，請檢查權限。");
+        }
+      };
+    }
+  }
+
+  // 遊戲開關切換按鈕
   const toggleBtn = document.getElementById("btn-toggle-game");
   if (toggleBtn) {
     toggleBtn.onclick = async () => {

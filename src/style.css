@@ -76,8 +76,25 @@ li { display: flex; justify-content: space-between; padding: 12px 0; border-bott
 .bingo-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
+  gap: 8px;
+  width: 100%;
   margin-top: 10px;
+}
+
+.bingo-cell-item {
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 6px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.bingo-cell-item input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px;
+  margin-top: 4px;
 }
 .bingo-cell {
   background: #f8f9fa;
