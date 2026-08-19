@@ -7,6 +7,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         admin: resolve(__dirname, 'admin.html'),
+        leaderboard: resolve(__dirname, 'leaderboard.html'),
       },
     },
   },
