@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>⚡ 靈魂共鳴・破冰交友大賽</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>⚡ 靈魂共鳴・破冰交友大賽</h1>
+
+      <!-- 登入區塊 -->
+      <div id="login-section" class="card">
+        <h2>🔑 參與者登入 / 註冊</h2>
+        <input type="email" id="email" placeholder="請輸入您的 Email" />
+        <input type="password" id="password" placeholder="請輸入密碼 (至少6碼)" />
+        <button id="btn-login">進入破冰冒險</button>
+      </div>
+
+      <!-- 遊戲主畫面 (登入後顯示) -->
+      <div id="game-section" style="display: none;">
+        
+        <!-- 個人檔案卡 -->
+        <div class="card profile-card">
+          <div class="profile-header">
+            <div class="profile-avatar">👤</div>
+            <div class="profile-info">
+              <h3 id="profile-email-display">載入中...</h3>
+              <p id="profile-team-display" class="team-badge">小隊狀態：讀取中...</p>
+            </div>
+          </div>
+          <div class="profile-stats">
+            <div class="stat-item">
+              <span class="stat-num" id="stat-scan-count">0</span>
+              <span class="stat-label">已交友人數</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-num" id="stat-bingo-count">0</span>
+              <span class="stat-label">共鳴格子數</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 個人 QR Code -->
+        <div class="card" style="text-align: center;">
+          <h2>👤 個人 QR Code</h2>
+          <div class="qr-container" style="display: flex; justify-content: center; margin: 15px 0;">
+            <canvas id="qr-canvas"></canvas>
+          </div>
+          <button id="btn-logout" style="background: #6c757d; width: auto; padding: 6px 15px;">登出帳號</button>
+        </div>
+
+        <!-- 5x5 賓果共鳴填寫區塊 -->
+        <div class="card">
+          <h2>🎯 5x5 靈魂共鳴話題</h2>
+          <div id="bingo-grid" class="bingo-grid"></div>
+        </div>
+
+        <!-- 掃描器區塊 -->
+        <div class="card">
+          <h2>📷 掃描新朋友 QR Code</h2>
+          <div id="reader" style="width: 100%;"></div>
+        </div>
+
+        <!-- 社交成就解鎖進度 -->
+        <div class="card">
+          <h2>🏆 社交成就獎勵</h2>
+          <ul id="goals-list" style="list-style: none; padding: 0;"></ul>
+        </div>
+
+        <!-- 小隊排行榜 -->
+        <div class="card">
+          <h2>📈 小隊榮譽排行榜</h2>
+          <ul id="leaderboard" style="list-style: none; padding: 0;"></ul>
+        </div>
+
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

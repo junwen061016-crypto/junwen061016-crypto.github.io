@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>⚙️ 上帝視角管理後台 - 破冰交友系統</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <h1>⚙️ 上帝視角管理後台</h1>
+
+    <!-- 後台登入區塊 -->
+    <div id="admin-login-section" class="card">
+      <h2>🔐 管理員驗證</h2>
+      <input type="email" id="admin-email" placeholder="請輸入管理員 Email" />
+      <input type="password" id="admin-password" placeholder="請輸入管理員密碼" />
+      <button id="btn-admin-login">登入後台</button>
+    </div>
+
+    <!-- 後台主控台區塊 (預設隱藏) -->
+    <div id="admin-dashboard-section" style="display: none;">
+      
+      <!-- 全局賽事控制 -->
+      <div class="card">
+        <h2>🎮 賽事時程控制 (Game Toggle)</h2>
+        <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap;">
+          <span id="game-status-text" style="font-weight: bold; font-size: 1.1rem; width: 100%;">目前狀態：載入中...</span>
+          <button id="btn-toggle-game" style="background: #28a745; flex: 1;">切換遊戲開關</button>
+        </div>
+        <!-- 補齊階段控制按鈕 -->
+        <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
+          <button id="btn-end-bingo" style="background: #17a2b8; flex: 1;">🎯 結束賓果遊戲</button>
+          <button id="btn-end-scan" style="background: #fd7e14; flex: 1;">📷 結束掃碼交友</button>
+          <button id="btn-final-result" style="background: #6f42c1; flex: 1;">🏆 進入最終結算</button>
+        </div>
+        <!-- 重新開啟按鈕群組 -->
+        <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
+          <button id="btn-restart-bingo" style="background: #20c997; flex: 1;">🔄 重新開啟賓果</button>
+          <button id="btn-restart-scan" style="background: #ffc107; color: #333; flex: 1;">🔄 重新開啟掃碼</button>
+          <button id="btn-restart-game" style="background: #6c757d; flex: 1;">🔄 取消結算/重置賽事</button>
+        </div>
+      </div>
+
+      <!-- 實時監控與賽事管理 -->
+      <div class="card">
+        <h2>📊 實時監控與賽事總覽</h2>
+        <p id="stats-overview" style="font-size: 0.9rem; color: #555;"></p>
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
+          <button id="btn-reset-scores" style="background: #dc3545;">⚠️ 小隊分數全數歸零</button>
+        </div>
+      </div>
+
+      <!-- 小隊分數手動調度 -->
+      <div class="card">
+        <h2>⚖️ 賽事分數手動調整</h2>
+        <select id="target-team-select">
+          <option value="team_1">第一小隊</option>
+          <option value="team_2">第二小隊</option>
+          <option value="team_3">第三小隊</option>
+          <option value="team_4">第四小隊</option>
+          <option value="team_5">第五小隊</option>
+        </select>
+        <input type="number" id="team-score-delta" placeholder="輸入要增加或減少的分數 (例如: 10 或 -10)" />
+        <button id="btn-adjust-score" style="background: #ffc107; color: #333;">套用分數調整</button>
+      </div>
+
+      <!-- 玩家列表與手動調度 / 剔除 -->
+      <div class="card">
+        <h2>👥 參與者管理與隊伍調度</h2>
+        <div style="max-height: 300px; overflow-y: auto;">
+          <ul id="admin-users-list"></ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <button id="btn-admin-logout" style="background: #6c757d;">登出後台</button>
+      </div>
+    </div>
+
+    <script type="module" src="/src/admin.js"></script>
+  </body>
+</html>

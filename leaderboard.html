@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🏆 現場即時排行榜 - 破冰交友大賽</title>
+    <link rel="stylesheet" href="/src/style.css" />
+    <style>
+      /* 大螢幕專屬炫彩深色佈局 */
+      body {
+        background: #0d1117;
+        color: #f0f6fc;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 40px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+      h1 {
+        font-size: 3rem;
+        margin-bottom: 30px;
+        background: linear-gradient(45deg, #ff758c, #ff7eb3);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 0 0 20px rgba(255, 117, 140, 0.4);
+      }
+      .board-container {
+        width: 100%;
+        max-width: 900px;
+        background: rgba(22, 27, 34, 0.85);
+        border: 2px solid #30363d;
+        border-radius: 16px;
+        padding: 40px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      }
+      .team-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 25px;
+      }
+      .team-label {
+        width: 180px;
+        font-size: 1.5rem;
+        font-weight: bold;
+      }
+      .bar-track {
+        flex: 1;
+        background: #21262d;
+        height: 35px;
+        border-radius: 18px;
+        overflow: hidden;
+        position: relative;
+        margin: 0 20px;
+        border: 1px solid #30363d;
+      }
+      .bar-fill {
+        height: 100%;
+        width: 0%;
+        border-radius: 18px;
+        transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        background: linear-gradient(90deg, #4f46e5, #3b82f6);
+      }
+      .team-1-fill { background: linear-gradient(90deg, #ff416c, #ff4b2b); }
+      .team-2-fill { background: linear-gradient(90deg, #f7b733, #fc4a1a); }
+      .team-3-fill { background: linear-gradient(90deg, #00b09b, #96c93d); }
+
+      .team-score {
+        width: 100px;
+        text-align: right;
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: #58a6ff;
+      }
+      #status-banner {
+        margin-top: 25px;
+        font-size: 1.2rem;
+        color: #8b949e;
+        letter-spacing: 2px;
+      }
+    </style>
+  </head>
+  <body>
+
+    <h1>🔥 靈魂共鳴・小隊爭霸即時戰況 🔥</h1>
+    
+    <div class="board-container">
+      <div id="big-leaderboard">
+        <!-- 動態長條圖載入處 -->
+      </div>
+    </div>
+
+    <div id="status-banner">🟢 賽事進行中・毫秒級即時同步...</div>
+
+    <script type="module" src="/src/leaderboard.js"></script>
+  </body>
+</html>
