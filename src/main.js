@@ -68,6 +68,9 @@ async function handleLogin() {
 onAuthStateChanged(auth, (user) => {
   if (user) {
     currentUserId = user.uid;
+
+    window.currentUserId = user.uid;
+
     isBingoInitialized = false;
     document.getElementById('login-section').style.display = 'none';
     document.getElementById('game-section').style.display = 'block';
@@ -296,6 +299,12 @@ function calculateBingoLines(matchedArray) {
 }
 
 function updateTeamUnlockStatus(lines) {
+  window.currentBingoLines = lines;
+
+  if(window.currentUserId && typeof initUserData == 'function'){
+    initUserData(window.currentUserId);
+  }
+
   let teamInfoEl = document.getElementById("hidden-team-info");
   if (!teamInfoEl) {
     teamInfoEl = document.createElement("div");
