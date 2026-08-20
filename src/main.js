@@ -41,30 +41,26 @@ window.currentBingoLines = 0;     // 記錄目前的賓果連線數
 const globalRef = doc(db, 'settings', 'global'); 
 
 // ==========================================
-// 3. 監聽全域賽事狀態（包含 RTDB 重置、遊戲結束提示與最終結算）
+// 3. 監聽全域賽事狀態（修復：確保 UI 狀態與 RTDB 重置獨立且正常運作）
 // ==========================================
-let lastResetTime = null; // 確保第一次讀取時能正確初始化
+let lastResetTime = null;
 
 onSnapshot(globalRef, (docSnap) => {
   if (!docSnap.exists()) return;
   const status = docSnap.data();
   console.log("偵測到 Firestore 全域狀態變化:", status);
 
-  // 初始化時記錄當下的 bingoResetAt，避免剛重新整理頁面就誤觸重置
+  // 1. 初始化 lastResetTime（如果是第一次載入）
   if (lastResetTime === null) {
     lastResetTime = status.bingoResetAt || 0;
-    return;
-  }
-
-  // 檢查後台是否有發動「重新填寫/重啟賓果」的新時間戳記 -> 完整重置 RTDB
-  if (status.bingoResetAt && status.bingoResetAt !== lastResetTime) {
+  } else if (status.bingoResetAt && status.bingoResetAt !== lastResetTime) {
+    // 2. 檢查後台是否有發動「重新開啟賓果」的新時間戳記 -> 完整重置 RTDB
     lastResetTime = status.bingoResetAt;
     console.log("💡 偵測到新的重置時間戳記，準備完全清空與解鎖賓果！");
 
     if (currentUserId) {
       isBingoInitialized = false;
 
-      // 寫入 RTDB：徹底回到初始狀態（清空答案、解除鎖定、歸零連線與匹配狀態）
       update(ref(rtdb, `users/${currentUserId}/bingoData`), {
         isLocked: false,
         answers: Array(25).fill(""),
@@ -79,7 +75,7 @@ onSnapshot(globalRef, (docSnap) => {
     }
   }
 
-  // 處理「賓果遊戲結束」的畫面提示 UI
+  // 3. 處理「賓果遊戲結束」的畫面提示 UI（不被 return 阻擋）
   const bingoSection = document.getElementById("bingo-grid")?.closest(".card") || document.getElementById("game-section");
   if (status.isBingoEnded) {
     showGameNotice("bingo-notice", "🎯 賓果遊戲已結束！", bingoSection);
@@ -87,7 +83,7 @@ onSnapshot(globalRef, (docSnap) => {
     removeGameNotice("bingo-notice");
   }
 
-  // 處理「掃碼交友結束」的畫面提示 UI
+  // 4. 處理「掃碼交友結束」的畫面提示 UI
   const scannerContainer = document.getElementById("reader");
   if (status.isScanEnded) {
     if (scannerContainer) scannerContainer.style.display = "none";
@@ -97,7 +93,7 @@ onSnapshot(globalRef, (docSnap) => {
     removeGameNotice("scan-notice");
   }
 
-  // 處理「最終結算」狀態
+  // 5. 處理「最終結算」狀態
   if (status.isFinalResult) {
     document.body.innerHTML = `
       <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; background: #f0f2f5; text-align: center; padding: 20px;">
