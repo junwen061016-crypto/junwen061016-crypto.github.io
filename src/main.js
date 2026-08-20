@@ -1,6 +1,7 @@
 // ==========================================
 // 1. Firebase 與第三方套件引入 (CDN 完整路徑，適用於 GitHub Pages)
 // ==========================================
+console.log("🔥 main.js 已經成功載入並執行！");
 import { auth, db, rtdb } from "./firebase.js";
 import { 
   signInWithEmailAndPassword, 
