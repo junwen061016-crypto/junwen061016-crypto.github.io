@@ -38,7 +38,7 @@ window.currentUserUid = null;     // 供小隊解鎖同步使用
 window.currentBingoLines = 0;     // 記錄目前的賓果連線數
 
 // 全域設定文件參照 (Firestore)
-const globalRef = doc(db, 'settings', 'global'); 
+const globalRef = doc(db, 'settings', 'gameConfig'); 
 
 // ==========================================
 // 3. 監聽全域賽事狀態（包含 RTDB 重置與 UI 狀態提示）
