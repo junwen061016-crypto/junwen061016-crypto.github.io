@@ -37,25 +37,29 @@ let scannerInstance = null;
 window.currentUserUid = null;     // 供小隊解鎖同步使用
 window.currentBingoLines = 0;     // 記錄目前的賓果連線數
 
-// 假設你的全域設定文件參照 (請根據你的 Firestore 結構調整路徑)
+// 全域設定文件參照
 const globalRef = doc(db, 'settings', 'global'); 
 
 // ==========================================
 // 3. 監聽全域賽事狀態（支援後台重啟賓果、清空重填）
 // ==========================================
-let lastResetTime = 0;
+let lastResetTime = null; // 改為 null 確保第一次讀取時能正確初始化
 
 onSnapshot(globalRef, (docSnap) => {
   if (!docSnap.exists()) return;
   const status = docSnap.data();
-  console.log("偵測到 Firestore 全域狀態變化:", status); // 已經會印出這行
+  console.log("偵測到 Firestore 全域狀態變化:", status);
 
-  // 檢查後台是否有發動「重新填寫」的訊號 (bingoResetAt)
+  // 初始化時記錄當下的 bingoResetAt，避免剛重新整理頁面就誤觸重置
+  if (lastResetTime === null) {
+    lastResetTime = status.bingoResetAt || 0;
+    return;
+  }
+
+  // 檢查後台是否有發動「重新填寫」的新時間戳記 (bingoResetAt)
   if (status.bingoResetAt && status.bingoResetAt !== lastResetTime) {
     lastResetTime = status.bingoResetAt;
     console.log("💡 偵測到新的重置時間戳記，準備清空與解鎖賓果！");
-    
-    // 檢查是否有當前使用者的 ID
     console.log("目前登入的 currentUserId:", currentUserId);
 
     if (currentUserId) {
@@ -139,7 +143,6 @@ function initUserData(uid) {
       team_5: '第五小隊',
     };
 
-    // 檢查賓果連線數是否達成 5 條以上
     const lines = window.currentBingoLines || 0; 
     const teamDisplayEl = document.getElementById('profile-team-display');
 
@@ -173,7 +176,6 @@ function initUserData(uid) {
 // 6. 初始化賓果遊戲與 RTDB 監聽
 // ==========================================
 function initBingoGame(uid) {
-  // 1. 取得題目
   const questionsRef = doc(db, 'settings', 'bingoQuestions');
   getDoc(questionsRef).then((docSnap) => {
     let questions = [];
@@ -183,7 +185,6 @@ function initBingoGame(uid) {
       questions = Array(25).fill("預設題目");
     }
 
-    // 2. 即時監聽使用者的賓果遊戲資料 (RTDB)
     const userBingoRef = ref(rtdb, `users/${uid}/bingoData`);
     onValue(userBingoRef, (snapshot) => {
       let bingoData = snapshot.val();
@@ -197,10 +198,7 @@ function initBingoGame(uid) {
         set(userBingoRef, bingoData);
       }
       
-      // 更新全域連線數變數
       window.currentBingoLines = bingoData.lines || 0;
-
-      // 渲染畫面
       renderBingoBoardUI(questions, bingoData, uid);
     });
   });
@@ -350,16 +348,15 @@ function updateTeamUnlockStatus(lines) {
 }
 
 // ==========================================
-// 9. 掃碼成功回呼函式 (依你的專案需求保留)
+// 9. 掃碼成功回呼函式
 // ==========================================
 function onScanSuccess(decodedText) {
-  // 這裡放置你原本處理掃描 QR Code 的邏輯
   console.log("掃描成功：", decodedText);
 }
 
 // ==========================================
-// 10. 排行榜初始化 (預留結構)
+// 10. 排行榜初始化
 // ==========================================
 function initLeaderboard() {
-  // 這裡放置你的排行榜初始化邏輯
+  // 預留排行榜邏輯
 }
