@@ -38,7 +38,7 @@ window.currentUserUid = null;     // 供小隊解鎖同步使用
 window.currentBingoLines = 0;     // 記錄目前的賓果連線數
 
 // 全域設定文件參照
-const globalRef = doc(db, 'settings', 'global'); 
+const globalRef = doc(db, 'gameStatus', 'global'); 
 
 // ==========================================
 // 3. 監聽全域賽事狀態（支援後台重啟賓果、清空重填）
