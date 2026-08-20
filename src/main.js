@@ -44,23 +44,35 @@ const globalRef = doc(db, 'settings', 'global');
 // 3. 監聽全域賽事狀態（支援後台重啟賓果、清空重填）
 // ==========================================
 let lastResetTime = 0;
+
 onSnapshot(globalRef, (docSnap) => {
   if (!docSnap.exists()) return;
   const status = docSnap.data();
+  console.log("偵測到 Firestore 全域狀態變化:", status); // 已經會印出這行
 
   // 檢查後台是否有發動「重新填寫」的訊號 (bingoResetAt)
   if (status.bingoResetAt && status.bingoResetAt !== lastResetTime) {
     lastResetTime = status.bingoResetAt;
+    console.log("💡 偵測到新的重置時間戳記，準備清空與解鎖賓果！");
     
+    // 檢查是否有當前使用者的 ID
+    console.log("目前登入的 currentUserId:", currentUserId);
+
     if (currentUserId) {
+      // 強制將介面初始化旗標歸零，確保畫面會重新生成
+      isBingoInitialized = false;
+
+      // 寫入 RTDB 清空答案並解除鎖定
       update(ref(rtdb, `users/${currentUserId}/bingoData`), {
         isLocked: false,
         answers: Array(25).fill("")
       }).then(() => {
-        console.log("偵測到後台重啟賓果，已自動解鎖並清空答案！");
+        console.log("✨ RTDB 賓果資料已成功重置（解鎖並清空）！");
       }).catch((error) => {
-        console.error("重置賓果失敗：", error);
+        console.error("❌ 重置 RTDB 賓果失敗：", error);
       });
+    } else {
+      console.log("⚠️ 警告：currentUserId 為空，無法更新 RTDB！");
     }
   }
 });
