@@ -40,6 +40,9 @@ function initAdminDashboard() {
 
   // 即時監聽目前賽事狀態，更新開關按鈕的外觀與文字
   onSnapshot(globalRef, (docSnap) => {
+    
+    console.log("偵測到 Firestore 全域狀態變化:", docSnap.data()); // 👈 加這行
+    if (!docSnap.exists()) return;
     const status = docSnap.exists() ? docSnap.data() : {};
     const stateEl = document.getElementById("game-state-display") || createGameStateDisplay();
     
