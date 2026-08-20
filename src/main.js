@@ -37,48 +37,57 @@ let scannerInstance = null;
 window.currentUserUid = null;     // 供小隊解鎖同步使用
 window.currentBingoLines = 0;     // 記錄目前的賓果連線數
 
-// 全域設定文件參照
-const globalRef = doc(db, 'gameStatus', 'global'); 
+// 全域設定文件參照 (Firestore)
+const globalRef = doc(db, 'settings', 'global'); 
 
 // ==========================================
-// 3. 監聽全域賽事狀態（支援後台重啟賓果、清空重填）
+// 3. 監聽全域賽事狀態（支援後台重啟賓果、結束遊戲與最終結算）
 // ==========================================
-let lastResetTime = null;
+let lastResetTime = null; // 確保第一次讀取時能正確初始化
 
 onSnapshot(globalRef, (docSnap) => {
   if (!docSnap.exists()) return;
   const status = docSnap.data();
   console.log("偵測到 Firestore 全域狀態變化:", status);
 
-  // 1. 處理賓果重置邏輯
+  // 初始化時記錄當下的 bingoResetAt，避免剛重新整理頁面就誤觸重置
   if (lastResetTime === null) {
     lastResetTime = status.bingoResetAt || 0;
     return;
   }
 
+  // 檢查後台是否有發動「重新填寫/重啟賓果」的新時間戳記
   if (status.bingoResetAt && status.bingoResetAt !== lastResetTime) {
     lastResetTime = status.bingoResetAt;
+    console.log("💡 偵測到新的重置時間戳記，準備完全清空與解鎖賓果！");
+
     if (currentUserId) {
       isBingoInitialized = false;
+
+      // 寫入 RTDB：徹底回到初始狀態（清空答案、解除鎖定、歸零連線與匹配狀態）
       update(ref(rtdb, `users/${currentUserId}/bingoData`), {
         isLocked: false,
         answers: Array(25).fill(""),
         matched: Array(25).fill(false),
         lines: 0
+      }).then(() => {
+        window.currentBingoLines = 0;
+        console.log("✨ 賓果遊戲已完全回到初始狀態！");
+      }).catch((error) => {
+        console.error("❌ 重置 RTDB 賓果失敗：", error);
       });
     }
   }
 
-  // 2. 處理「賓果遊戲結束」的畫面提示
+  // 處理「賓果遊戲結束」的畫面提示
   const bingoSection = document.getElementById("bingo-grid")?.closest(".card") || document.getElementById("game-section");
   if (status.isBingoEnded) {
-    // 可以在畫面上方顯示提示，或將賓果區塊加上遮罩/提示文字
     showGameNotice("bingo-notice", "🎯 賓果遊戲已結束！", bingoSection);
   } else {
     removeGameNotice("bingo-notice");
   }
 
-  // 3. 處理「掃碼交友結束」的畫面提示 (例如隱藏掃描器)
+  // 處理「掃碼交友結束」的畫面提示
   const scannerContainer = document.getElementById("reader");
   if (status.isScanEnded) {
     if (scannerContainer) scannerContainer.style.display = "none";
@@ -88,7 +97,7 @@ onSnapshot(globalRef, (docSnap) => {
     removeGameNotice("scan-notice");
   }
 
-  // 4. 處理「最終結算」狀態
+  // 處理「最終結算」狀態
   if (status.isFinalResult) {
     document.body.innerHTML = `
       <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; background: #f0f2f5; text-align: center; padding: 20px;">
@@ -123,7 +132,7 @@ function removeGameNotice(id) {
 onAuthStateChanged(auth, (user) => {
   if (user) {
     currentUserId = user.uid;
-    window.currentUserUid = user.uid; // 記錄全域 UID
+    window.currentUserUid = user.uid;
     isBingoInitialized = false;
     
     document.getElementById('login-section').style.display = 'none';
@@ -209,21 +218,23 @@ function initUserData(uid) {
 }
 
 // ==========================================
-// 6. 初始化賓果遊戲與 RTDB 監聽
+// 6. 初始化賓果遊戲與即時讀取 RTDB 題目 (config/bingo_questions)
 // ==========================================
 function initBingoGame(uid) {
-  const questionsRef = doc(db, 'settings', 'bingoQuestions');
-  getDoc(questionsRef).then((docSnap) => {
+  // 對齊後台儲存的 Realtime Database 路徑
+  const questionsRef = ref(rtdb, "config/bingo_questions");
+  
+  onValue(questionsRef, (snapshot) => {
     let questions = [];
-    if (docSnap.exists()) {
-      questions = docSnap.data().list || Array(25).fill("預設題目");
+    if (snapshot.exists()) {
+      questions = snapshot.val();
     } else {
       questions = Array(25).fill("預設題目");
     }
 
     const userBingoRef = ref(rtdb, `users/${uid}/bingoData`);
-    onValue(userBingoRef, (snapshot) => {
-      let bingoData = snapshot.val();
+    onValue(userBingoRef, (userSnap) => {
+      let bingoData = userSnap.val();
       if (!bingoData) {
         bingoData = {
           answers: Array(25).fill(""),
@@ -391,8 +402,54 @@ function onScanSuccess(decodedText) {
 }
 
 // ==========================================
-// 10. 排行榜初始化
+// 10. 小隊榮譽排行榜初始化與即時監聽
 // ==========================================
 function initLeaderboard() {
-  // 預留排行榜邏輯
+  let leaderboardEl = document.getElementById("leaderboard-container");
+  if (!leaderboardEl) {
+    leaderboardEl = document.createElement("div");
+    leaderboardEl.id = "leaderboard-container";
+    leaderboardEl.className = "card";
+    leaderboardEl.style.cssText = "margin-top: 20px; padding: 15px; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);";
+    
+    const gameSection = document.getElementById("game-section");
+    if (gameSection) {
+      gameSection.appendChild(leaderboardEl);
+    }
+  }
+
+  const teamsCol = collection(db, "teams");
+  onSnapshot(teamsCol, (snapshot) => {
+    let teamsList = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      teamsList.push({
+        id: docSnap.id,
+        name: data.teamName || docSnap.id,
+        score: data.score || 0
+      });
+    });
+
+    teamsList.sort((a, b) => b.score - a.score);
+
+    let html = `<h3 style="margin-top: 0; color: #333; font-size: 1.1rem;">🏆 小隊榮譽排行榜</h3>`;
+    html += `<ul style="list-style: none; padding: 0; margin: 10px 0 0 0;">`;
+    
+    teamsList.forEach((team, index) => {
+      let medal = "";
+      if (index === 0) medal = "🥇 ";
+      else if (index === 1) medal = "🥈 ";
+      else if (index === 2) medal = "🥉 ";
+
+      html += `
+        <li style="display: flex; justify-content: space-between; padding: 8px 10px; margin-bottom: 5px; background: #f8f9fa; border-radius: 4px; font-size: 0.95rem;">
+          <span>${medal}<b>${team.name}</b></span>
+          <span style="color: #007bff; font-weight: bold;">${team.score} 分</span>
+        </li>
+      `;
+    });
+    html += `</ul>`;
+
+    leaderboardEl.innerHTML = html;
+  });
 }
