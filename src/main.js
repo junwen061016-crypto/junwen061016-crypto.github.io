@@ -43,43 +43,79 @@ const globalRef = doc(db, 'gameStatus', 'global');
 // ==========================================
 // 3. 監聽全域賽事狀態（支援後台重啟賓果、清空重填）
 // ==========================================
-let lastResetTime = null; // 改為 null 確保第一次讀取時能正確初始化
+let lastResetTime = null;
 
 onSnapshot(globalRef, (docSnap) => {
   if (!docSnap.exists()) return;
   const status = docSnap.data();
   console.log("偵測到 Firestore 全域狀態變化:", status);
 
-  // 初始化時記錄當下的 bingoResetAt，避免剛重新整理頁面就誤觸重置
+  // 1. 處理賓果重置邏輯
   if (lastResetTime === null) {
     lastResetTime = status.bingoResetAt || 0;
     return;
   }
 
-  // 檢查後台是否有發動「重新填寫」的新時間戳記 (bingoResetAt)
   if (status.bingoResetAt && status.bingoResetAt !== lastResetTime) {
     lastResetTime = status.bingoResetAt;
-    console.log("💡 偵測到新的重置時間戳記，準備清空與解鎖賓果！");
-    console.log("目前登入的 currentUserId:", currentUserId);
-
     if (currentUserId) {
-      // 強制將介面初始化旗標歸零，確保畫面會重新生成
       isBingoInitialized = false;
-
-      // 寫入 RTDB 清空答案並解除鎖定
       update(ref(rtdb, `users/${currentUserId}/bingoData`), {
         isLocked: false,
-        answers: Array(25).fill("")
-      }).then(() => {
-        console.log("✨ RTDB 賓果資料已成功重置（解鎖並清空）！");
-      }).catch((error) => {
-        console.error("❌ 重置 RTDB 賓果失敗：", error);
+        answers: Array(25).fill(""),
+        matched: Array(25).fill(false),
+        lines: 0
       });
-    } else {
-      console.log("⚠️ 警告：currentUserId 為空，無法更新 RTDB！");
     }
   }
+
+  // 2. 處理「賓果遊戲結束」的畫面提示
+  const bingoSection = document.getElementById("bingo-grid")?.closest(".card") || document.getElementById("game-section");
+  if (status.isBingoEnded) {
+    // 可以在畫面上方顯示提示，或將賓果區塊加上遮罩/提示文字
+    showGameNotice("bingo-notice", "🎯 賓果遊戲已結束！", bingoSection);
+  } else {
+    removeGameNotice("bingo-notice");
+  }
+
+  // 3. 處理「掃碼交友結束」的畫面提示 (例如隱藏掃描器)
+  const scannerContainer = document.getElementById("reader");
+  if (status.isScanEnded) {
+    if (scannerContainer) scannerContainer.style.display = "none";
+    showGameNotice("scan-notice", "📷 掃碼交友已結束！", document.getElementById("login-section")?.parentNode);
+  } else {
+    if (scannerContainer) scannerContainer.style.display = "block";
+    removeGameNotice("scan-notice");
+  }
+
+  // 4. 處理「最終結算」狀態
+  if (status.isFinalResult) {
+    document.body.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; background: #f0f2f5; text-align: center; padding: 20px;">
+        <h1 style="color: #333; font-size: 2.5rem;">🏆 賽事已進入最終結算</h1>
+        <p style="color: #666; font-size: 1.2rem; margin-top: 10px;">感謝大家的熱情參與，請靜候頒獎與最終結果公布！</p>
+      </div>
+    `;
+  }
 });
+
+// 輔助函式：動態顯示頂部提示條
+function showGameNotice(id, message, parentElement) {
+  let notice = document.getElementById(id);
+  if (!notice && parentElement) {
+    notice = document.createElement("div");
+    notice.id = id;
+    notice.style.cssText = "background: #ff4d4f; color: white; padding: 10px; text-align: center; font-weight: bold; margin-bottom: 10px; border-radius: 4px; z-index: 999;";
+    parentElement.prepend(notice);
+  }
+  if (notice) notice.innerText = message;
+}
+
+// 輔助函式：移除提示條
+function removeGameNotice(id) {
+  const notice = document.getElementById(id);
+  if (notice) notice.remove();
+}
 
 // ==========================================
 // 4. 使用者登入狀態監聽
