@@ -41,7 +41,7 @@ window.currentBingoLines = 0;     // 記錄目前的賓果連線數
 const globalRef = doc(db, 'settings', 'global'); 
 
 // ==========================================
-// 3. 監聽全域賽事狀態（支援後台重啟賓果、結束遊戲與最終結算）
+// 3. 監聽全域賽事狀態（包含 RTDB 重置、遊戲結束提示與最終結算）
 // ==========================================
 let lastResetTime = null; // 確保第一次讀取時能正確初始化
 
@@ -56,7 +56,7 @@ onSnapshot(globalRef, (docSnap) => {
     return;
   }
 
-  // 檢查後台是否有發動「重新填寫/重啟賓果」的新時間戳記
+  // 檢查後台是否有發動「重新填寫/重啟賓果」的新時間戳記 -> 完整重置 RTDB
   if (status.bingoResetAt && status.bingoResetAt !== lastResetTime) {
     lastResetTime = status.bingoResetAt;
     console.log("💡 偵測到新的重置時間戳記，準備完全清空與解鎖賓果！");
@@ -79,7 +79,7 @@ onSnapshot(globalRef, (docSnap) => {
     }
   }
 
-  // 處理「賓果遊戲結束」的畫面提示
+  // 處理「賓果遊戲結束」的畫面提示 UI
   const bingoSection = document.getElementById("bingo-grid")?.closest(".card") || document.getElementById("game-section");
   if (status.isBingoEnded) {
     showGameNotice("bingo-notice", "🎯 賓果遊戲已結束！", bingoSection);
@@ -87,7 +87,7 @@ onSnapshot(globalRef, (docSnap) => {
     removeGameNotice("bingo-notice");
   }
 
-  // 處理「掃碼交友結束」的畫面提示
+  // 處理「掃碼交友結束」的畫面提示 UI
   const scannerContainer = document.getElementById("reader");
   if (status.isScanEnded) {
     if (scannerContainer) scannerContainer.style.display = "none";
@@ -221,7 +221,6 @@ function initUserData(uid) {
 // 6. 初始化賓果遊戲與即時讀取 RTDB 題目 (config/bingo_questions)
 // ==========================================
 function initBingoGame(uid) {
-  // 對齊後台儲存的 Realtime Database 路徑
   const questionsRef = ref(rtdb, "config/bingo_questions");
   
   onValue(questionsRef, (snapshot) => {
