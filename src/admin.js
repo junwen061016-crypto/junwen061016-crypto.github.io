@@ -89,7 +89,9 @@ function initAdminDashboard() {
   if (btnRestartBingo) {
     btnRestartBingo.onclick = async () => {
       if (confirm("確定要【重新開啟賓果遊戲】嗎？")) {
-        await updateDoc(globalRef, { isBingoEnded: false });
+        await updateDoc(globalRef, { 
+          isBingoEnded: false ,
+          bingoResetAt: Date.now()});
         alert("已重新開啟賓果遊戲！");
       }
     };
