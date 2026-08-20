@@ -1,7 +1,7 @@
 import { auth, db, rtdb } from "./firebase.js";
-import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc, setDoc, updateDoc, collection, deleteDoc, onSnapshot } from "firebase/firestore";
-import { getDatabase, ref, set, get } from "firebase/database";
+import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { doc, getDoc, setDoc, updateDoc, collection, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 // 後台登入
 document.getElementById("btn-admin-login").addEventListener("click", async () => {

@@ -1,10 +1,14 @@
+// 1. 從你自己的 firebase.js 引入初始化好的實例（確保 firebase.js 裡面也是用 CDN 寫的）
 import { auth, db, rtdb } from './firebase.js';
+
+// 2. 改用 CDN 引入 Firebase 模組 (使用穩定版本 10.8.0)
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   onAuthStateChanged,
   signOut,
-} from 'firebase/auth';
+} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+
 import {
   doc,
   getDoc,
@@ -14,10 +18,19 @@ import {
   collection,
   query,
   orderBy,
-} from 'firebase/firestore';
-import { Html5QrcodeScanner } from 'html5-qrcode';
-import QRCode from 'qrcode';
-import { getDatabase, ref, get, set, update, onValue } from "firebase/database";
+} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+import { 
+  ref, 
+  get, 
+  set, 
+  update, 
+  onValue 
+} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
+
+// 3. 第三方套件（QR Code 相關）如果也報錯，建議改用 CDN 引入，或是確保它們有正確路徑
+import { Html5QrcodeScanner } from 'https://esm.run/html5-qrcode';
+import QRCode from 'https://esm.run/qrcode';
 
 // 這裡使用 rtdb 避免與 Firestore 的 db 撞名
 let scannerInstance = null;

@@ -1,6 +1,12 @@
 import { db } from "./firebase.js";
-import { collection, onSnapshot, query, orderBy, doc } from "firebase/firestore";
-import confetti from "canvas-confetti";
+import { 
+  collection, 
+  onSnapshot, 
+  query, 
+  orderBy, 
+  doc 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import confetti from "https://esm.run/canvas-confetti";
 
 const q = query(collection(db, "teams"), orderBy("score", "desc"));
 
