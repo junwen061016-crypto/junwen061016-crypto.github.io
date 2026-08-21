@@ -176,26 +176,36 @@ function initUserData(uid) {
 
 function initBingoGame(userId) {
   let currentQuestions = Array(25).fill("靈魂共鳴題目");
+  // 用一個共用容器保存「目前最新的」bingoData，
+  // 讓所有事件監聽器都能透過這個容器拿到最新資料，避免閉包抓到過期資料
+  const stateRef = { data: null };
 
   get(ref(rtdb, "config/bingo_questions")).then((questionsSnap) => {
-    if (questionsSnap.exists()) currentQuestions = questionsSnap.val();
+    if (questionsSnap.exists()) {
+      currentQuestions = questionsSnap.val();
+    }
     setupListener();
-  }).catch(() => setupListener());
+  }).catch(() => {
+    setupListener();
+  });
 
   function setupListener() {
     const userBingoRef = ref(rtdb, `users/${userId}/bingoData`);
     onValue(userBingoRef, (snapshot) => {
       let bingoData = snapshot.val();
+
       if (!bingoData) {
         bingoData = { answers: Array(25).fill(""), isLocked: false, matched: Array(25).fill(false), lines: 0 };
         set(userBingoRef, bingoData);
       }
-      renderBingoBoardUI(currentQuestions, bingoData, userId);
+
+      stateRef.data = bingoData;
+      renderBingoBoardUI(currentQuestions, stateRef, userId);
     });
   }
 }
 
-function renderBingoBoardUI(questions, bingoData, userId) {
+function renderBingoBoardUI(questions, stateRef, userId) {
   let boardContainer = document.getElementById("bingo-grid");
   if (!boardContainer) return;
 
@@ -223,17 +233,21 @@ function renderBingoBoardUI(questions, bingoData, userId) {
       input.placeholder = "填答案";
 
       input.addEventListener("input", (e) => {
-        if (!bingoData.answers) bingoData.answers = Array(25).fill("");
-        bingoData.answers[index] = e.target.value.trim();
-        update(ref(rtdb, `users/${userId}/bingoData`), { answers: bingoData.answers });
+        // 透過 stateRef 永遠拿到「當下最新」的資料，而不是舊的閉包物件
+        const data = stateRef.data;
+        if (!data.answers) data.answers = Array(25).fill("");
+        data.answers[index] = e.target.value.trim();
+        update(ref(rtdb, `users/${userId}/bingoData`), { answers: data.answers });
       });
 
       cell.appendChild(input);
       boardContainer.appendChild(cell);
     });
+
     isBingoInitialized = true;
   }
 
+  const bingoData = stateRef.data;
   const cells = boardContainer.children;
   questions.forEach((qText, index) => {
     if (cells[index]) {
@@ -269,12 +283,19 @@ function renderBingoBoardUI(questions, bingoData, userId) {
       lockBtn.id = "btn-lock-bingo";
       lockBtn.innerText = "🔒 確認並鎖定賓果答案";
       lockBtn.style.cssText = "margin-top:15px; background:#28a745; color:#fff; padding:10px; width:100%; border:none; border-radius:5px; cursor:pointer;";
+
       lockBtn.onclick = async () => {
-        if (!bingoData.answers || bingoData.answers.some(a => !a)) {
+        // 關鍵修正：直接讀取畫面上 25 個輸入框「當下真正顯示」的內容，
+        // 不依賴任何可能過期的 JS 物件，確保跟使用者眼睛看到的完全一致
+        const inputs = boardContainer.querySelectorAll('.cell-input');
+        const liveAnswers = Array.from(inputs).map(inp => inp.value.trim());
+
+        if (liveAnswers.length !== 25 || liveAnswers.some(a => !a)) {
           return alert("請把 25 格的答案都填滿才可以鎖定！");
         }
+
         if (confirm("答案鎖定後將無法修改，直到控制台重置，確定送出嗎？")) {
-          await update(ref(rtdb, `users/${userId}/bingoData`), { answers: bingoData.answers, isLocked: true });
+          await update(ref(rtdb, `users/${userId}/bingoData`), { answers: liveAnswers, isLocked: true });
           alert("答案鎖定成功！");
         }
       };
