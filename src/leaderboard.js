@@ -1,11 +1,11 @@
 import { db } from "./firebase.js";
-import { 
-  collection, 
-  onSnapshot, 
-  query, 
-  orderBy, 
-  doc 
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import {
+  collection,
+  onSnapshot,
+  query,
+  orderBy,
+  doc,
+} from "firebase/firestore";
 import confetti from "https://esm.run/canvas-confetti";
 
 const q = query(collection(db, "teams"), orderBy("score", "desc"));
@@ -17,7 +17,7 @@ onSnapshot(q, (snapshot) => {
   if (!container) return;
   container.innerHTML = "";
 
-  let maxScore = 10; // 避免分母為 0
+  let maxScore = 10;
   const teamsData = [];
 
   snapshot.forEach((docSnap) => {
@@ -27,14 +27,12 @@ onSnapshot(q, (snapshot) => {
     teamsData.push({ id: docSnap.id, ...data });
   });
 
-  // 渲染長條圖
   teamsData.forEach((team, index) => {
     const score = team.score || 0;
     const percentage = Math.max(8, Math.min(100, (score / maxScore) * 100));
     const medal = index === 0 ? "👑" : index === 1 ? "🥈" : "🥉";
     const fillClass = team.id === 'team_1' ? 'team-1-fill' : team.id === 'team_2' ? 'team-2-fill' : 'team-3-fill';
 
-    // 檢查是否有分數上升，觸發微型慶祝
     if (previousScores[team.id] !== undefined && score > previousScores[team.id]) {
       confetti({
         particleCount: 30,
@@ -57,12 +55,10 @@ onSnapshot(q, (snapshot) => {
   });
 });
 
-// 三階段開關即時監聽（大螢幕同步）
 onSnapshot(doc(db, "gameStatus", "global"), (docSnap) => {
   if (!docSnap.exists()) return;
   const status = docSnap.data();
 
-  // 1. 如果賓果結束
   if (status.isBingoEnded) {
     const bingoGrid = document.getElementById("bingo-grid");
     if (bingoGrid) {
@@ -71,7 +67,6 @@ onSnapshot(doc(db, "gameStatus", "global"), (docSnap) => {
     }
   }
 
-  // 2. 如果掃碼結束
   if (status.isScanEnded) {
     const readerEl = document.getElementById("reader");
     if (readerEl) {
@@ -79,7 +74,6 @@ onSnapshot(doc(db, "gameStatus", "global"), (docSnap) => {
     }
   }
 
-  // 3. 如果進入最終結算
   if (status.isFinalResult) {
     const gameSection = document.getElementById("game-section");
     if (gameSection) gameSection.style.display = "none";
