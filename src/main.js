@@ -411,6 +411,7 @@ async function handleScanLogic(decodedText) {
 
   try {
     await runTransaction(db, async (transaction) => {
+      // ---------- 階段一：全部讀取 ----------
       const mySnap = await transaction.get(myRef);
       const otherSnap = await transaction.get(otherRef);
 
@@ -441,15 +442,17 @@ async function handleScanLogic(decodedText) {
         teamPointsMap[otherData.teamId] = (teamPointsMap[otherData.teamId] || 0) + otherResult.points;
       }
 
-      const teamSnaps ={};
-      for(const teamId of Object.keys(teamPointsMap)){
-        const teamRef = doc(db, 'teams',teamId);
-        teamSnaps[teamId]={
-          ref : teamRef,
-          snap : await transaction.get(teamRef),
-        }
+      // 隊伍相關的讀取，也必須在這裡（寫入之前）全部做完
+      const teamSnaps = {};
+      for (const teamId of Object.keys(teamPointsMap)) {
+        const teamRef = doc(db, 'teams', teamId);
+        teamSnaps[teamId] = {
+          ref: teamRef,
+          snap: await transaction.get(teamRef),
+        };
       }
 
+      // ---------- 階段二：全部寫入 ----------
       transaction.update(myRef, {
         scannedList: newMyScanned,
         unlockedGoals: myResult.goals,
@@ -460,8 +463,7 @@ async function handleScanLogic(decodedText) {
       });
 
       for (const teamId of Object.keys(teamPointsMap)) {
-        const teamRef = doc(db, 'teams', teamId);
-        const teamSnap = await transaction.get(teamRef);
+        const { ref: teamRef, snap: teamSnap } = teamSnaps[teamId];
         const currentScore = teamSnap.exists() ? (teamSnap.data().score || 0) : 0;
         transaction.set(teamRef, {
           score: currentScore + teamPointsMap[teamId],
@@ -473,9 +475,52 @@ async function handleScanLogic(decodedText) {
     });
   } catch (err) {
     console.error('交友交易失敗：', err);
-    alert('掃描時發生錯誤，請重新掃描一次！'+err.message);
+    alert('掃描時發生錯誤：' + err.message);
     return;
   }
+
+  // --- 賓果比對邏輯 ---
+  const mySnap = await get(ref(rtdb, `users/${myUid}/bingoData`));
+  const targetSnap = await get(ref(rtdb, `users/${otherUid}/bingoData`));
+
+  if (mySnap.exists() && targetSnap.exists()) {
+    const myBingoData = mySnap.val();
+    const targetBingoData = targetSnap.val();
+
+    if (myBingoData.isLocked && targetBingoData.isLocked) {
+      let updatedMatched = myBingoData.matched || Array(25).fill(false);
+      let otherUpdatedMatched = targetBingoData.matched || Array(25).fill(false);
+      let hasNewMatch = false;
+
+      for (let i = 0; i < 25; i++) {
+        if (myBingoData.answers[i] === targetBingoData.answers[i] && myBingoData.answers[i] !== "") {
+          if (!updatedMatched[i]) {
+            updatedMatched[i] = true;
+            hasNewMatch = true;
+          }
+          if (!otherUpdatedMatched[i]) {
+            otherUpdatedMatched[i] = true;
+          }
+        }
+      }
+
+      if (hasNewMatch) {
+        const myLines = calculateBingoLines(updatedMatched);
+        const otherLines = calculateBingoLines(otherUpdatedMatched);
+
+        await Promise.all([
+          update(ref(rtdb, `users/${myUid}/bingoData`), { matched: updatedMatched, lines: myLines }),
+          update(ref(rtdb, `users/${otherUid}/bingoData`), { matched: otherUpdatedMatched, lines: otherLines })
+        ]);
+
+        alert("掃描成功！(噴花 噴花)");
+        return;
+      }
+    }
+  }
+
+  alert(resultMessage);
+}
 
   // --- 賓果比對邏輯（維持原本，只影響掃描者自己） ---
   const mySnap = await get(ref(rtdb, `users/${myUid}/bingoData`));
@@ -518,7 +563,7 @@ async function handleScanLogic(decodedText) {
   }
 
   alert(resultMessage);
-}
+sssss
 
 // 計算成就清單與這次獲得的積分（純函式，不做任何 Firestore 寫入）
 function computeGoalsAndPoints(currentGoals, newFriendCount) {
