@@ -420,7 +420,6 @@ async function handleScanLogic(decodedText) {
 
       const myData = mySnap.data();
       const otherData = otherSnap.data();
-
       const myScanned = myData.scannedList || [];
 
       if (myScanned.includes(otherUid)) {
@@ -459,10 +458,6 @@ async function handleScanLogic(decodedText) {
         scannedList: newOtherScanned,
         unlockedGoals: otherResult.goals,
       });
-
-      // 先把「小隊 -> 要加的分數」彙整起來，同隊的話分數會自動加總，
-      // 避免對同一份小隊文件 get() 兩次
-      
 
       for (const teamId of Object.keys(teamPointsMap)) {
         const teamRef = doc(db, 'teams', teamId);
