@@ -478,7 +478,7 @@ async function handleScanLogic(decodedText) {
     });
   } catch (err) {
     console.error('交友交易失敗：', err);
-    alert('掃描時發生錯誤，請重新掃描一次！');
+    alert('掃描時發生錯誤，請重新掃描一次！'+err.message);
     return;
   }
 
