@@ -17,7 +17,7 @@ import { ref, get, set, update, onValue } from "firebase/database";
 let scannerInstance = null;
 let currentUserId = null;
 let isBingoInitialized = false;
-let ifScanProcessing = false;
+let isScanProcessing = false;
 let lastScannedId = null;
 let lastScannedAt = 0;
 const SCAN_COOLDOWN_MS = 3000;
@@ -497,12 +497,12 @@ async function handleScanLogic(decodedText) {
       }
 
       if (hasNewMatch) {
-        const myLines = calculateBingoLines(myUpdateMatched);
+        const myLines = calculateBingoLines(updateMatched);
         const otherLines = calculateBingoLines(otherUpdatedMatched);
 
         await Promise.all([
-          update(ref(rtdb,'user/${myUid}/bingoData'),{matched: myUpdateMatched, lines: myLines}),
-          update(ref(rtdb,'user/${otherUid}/bingoData'),{matched: otherUpdateMatched, lines: otherLines})
+          update(ref(rtdb,`user/${myUid}/bingoData`),{matched: myUpdateMatched, lines: myLines}),
+          update(ref(rtdb,`user/${otherUid}/bingoData`),{matched: otherUpdateMatched, lines: otherLines})
         ]);
 
         alert("掃描成功!(噴花 噴花");
@@ -536,6 +536,7 @@ function computeGoalsAndPoints(currentGoals, newFriendCount) {
 // --- 全域賽事狀態監聽：新增邊緣觸發彈窗 + 可逆的 UI 開關 ---
 let prevBingoEnded = false;
 let prevScanEnded = false;
+let prevBingoResetAt = null;
 
 function ensureScanOverlay() {
   let overlay = document.getElementById('scan-ended-overlay');
@@ -550,10 +551,38 @@ function ensureScanOverlay() {
   return overlay;
 }
 
+async function resetPlayerBingoData(uid) {
+  isBingoInitialized = false; // 強制重建整個賓果格子 UI
+
+  const resetData = {
+    answers: Array(25).fill(""),
+    isLocked: false,
+    matched: Array(25).fill(false),
+    lines: 0
+  };
+
+  await set(ref(rtdb, `users/${uid}/bingoData`), resetData);
+
+  const grid = document.getElementById('bingo-grid');
+  if (grid) grid.innerHTML = '';
+
+  alert('🔄 賓果遊戲已重置，請重新填寫答案！');
+}
+
 onSnapshot(doc(db, 'gameStatus', 'global'), (docSnap) => {
   if (!docSnap.exists()) return;
   const status = docSnap.data();
 
+  if (status.bingoResetAt) {
+    if (prevBingoResetAt === null) {
+      // 第一次載入頁面時，只記錄基準值，不要誤觸重置
+      prevBingoResetAt = status.bingoResetAt;
+    } else if (status.bingoResetAt !== prevBingoResetAt) {
+      prevBingoResetAt = status.bingoResetAt;
+      if (currentUserId) resetPlayerBingoData(currentUserId);
+    }
+  }
+  
   // 賓果遊戲開關（可逆）
   const bingoGrid = document.getElementById('bingo-grid');
   if (bingoGrid) {
