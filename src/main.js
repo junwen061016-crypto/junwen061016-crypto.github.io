@@ -522,48 +522,7 @@ async function handleScanLogic(decodedText) {
   alert(resultMessage);
 }
 
-  // --- 賓果比對邏輯（維持原本，只影響掃描者自己） ---
-  const mySnap = await get(ref(rtdb, `users/${myUid}/bingoData`));
-  const targetSnap = await get(ref(rtdb, `users/${otherUid}/bingoData`));
-
-  if (mySnap.exists() && targetSnap.exists()) {
-    const myBingoData = mySnap.val();
-    const targetBingoData = targetSnap.val();
-
-    if (myBingoData.isLocked && targetBingoData.isLocked) {
-      let updatedMatched = myBingoData.matched || Array(25).fill(false);
-      let otherUpdatedMatched = targetBingoData.matched || Array(25).fill(false);
-      let hasNewMatch = false;
-
-      for (let i = 0; i < 25; i++) {
-        if (myBingoData.answers[i] === targetBingoData.answers[i] && myBingoData.answers[i] !== "") {
-          if (!updatedMatched[i]) {
-            updatedMatched[i] = true;
-            hasNewMatch = true;
-          }
-          if (!otherUpdatedMatched[i]) {
-            otherUpdatedMatched[i] = true;
-          }
-        }
-      }
-
-      if (hasNewMatch) {
-        const myLines = calculateBingoLines(updateMatched);
-        const otherLines = calculateBingoLines(otherUpdatedMatched);
-
-        await Promise.all([
-          update(ref(rtdb,`user/${myUid}/bingoData`),{matched: myUpdateMatched, lines: myLines}),
-          update(ref(rtdb,`user/${otherUid}/bingoData`),{matched: otherUpdateMatched, lines: otherLines})
-        ]);
-
-        alert("掃描成功!(噴花 噴花");
-        return;
-      }
-    }
-  }
-
-  alert(resultMessage);
-
+ 
 
 // 計算成就清單與這次獲得的積分（純函式，不做任何 Firestore 寫入）
 function computeGoalsAndPoints(currentGoals, newFriendCount) {
