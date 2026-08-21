@@ -563,7 +563,7 @@ async function handleScanLogic(decodedText) {
   }
 
   alert(resultMessage);
-sssss
+
 
 // 計算成就清單與這次獲得的積分（純函式，不做任何 Firestore 寫入）
 function computeGoalsAndPoints(currentGoals, newFriendCount) {
