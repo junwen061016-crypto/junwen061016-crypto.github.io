@@ -7,15 +7,20 @@ import {
 } from 'firebase/auth';
 import {
   doc, getDoc, setDoc, updateDoc, onSnapshot,
-  collection, query, orderBy,
+  collection, query, orderBy, runTransaction,
 } from 'firebase/firestore';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import QRCode from 'qrcode';
 import { ref, get, set, update, onValue } from "firebase/database";
 
+
 let scannerInstance = null;
 let currentUserId = null;
 let isBingoInitialized = false;
+let ifScanProcessing = false;
+let lastScannedId = null;
+let lastScannedAt = 0;
+const SCAN_COOLDOWN_MS = 3000;
 
 const TEAM_MAP = {
   team_1: '第一小隊 🦁', team_2: '第二小隊 🐯', team_3: '第三小隊 🦅',
@@ -348,79 +353,163 @@ function initLeaderboard() {
 async function onScanSuccess(decodedText) {
   if (!currentUserId) return;
   if (decodedText === currentUserId) return alert("不能掃描自己！");
+  if (isScanProcessing) return;
 
-  const userRef = doc(db, 'users', currentUserId);
-  const userSnap = await getDoc(userRef);
-  if (!userSnap.exists()) return;
-
-  const userData = userSnap.data();
-  const scannedList = userData.scannedList || [];
-  let isNewFriend = false;
-  let bonusPoints = 0;
-  let newGoals = [...(userData.unlockedGoals || [])];
-
-  if (!scannedList.includes(decodedText)) {
-    isNewFriend = true;
-    const newScannedList = [...scannedList, decodedText];
-    const count = newScannedList.length;
-
-    if (count === 1 && !newGoals.includes('🥉 社交新星：結交第 1 位朋友')) {
-      newGoals.push('🥉 社交新星：結交第 1 位朋友');
-      bonusPoints = 10;
-    } else if (count === 3 && !newGoals.includes('🥈 破冰達人：結交 3 位朋友')) {
-      newGoals.push('🥈 破冰達人：結交 3 位朋友');
-      bonusPoints = 30;
-    } else if (count === 5 && !newGoals.includes('🥇 社交王者：結交 5 位朋友')) {
-      newGoals.push('🥇 社交王者：結交 5 位朋友');
-      bonusPoints = 50;
-    }
-
-    await updateDoc(userRef, { scannedList: newScannedList, unlockedGoals: newGoals });
-
-    // 每成功交友一次基本 +50 分，達成里程碑再加成
-    const totalPoints = 50 + bonusPoints;
-    if (userData.teamId) {
-      const teamRef = doc(db, 'teams', userData.teamId);
-      const teamSnap = await getDoc(teamRef);
-      const currentScore = teamSnap.exists() ? teamSnap.data().score || 0 : 0;
-      await setDoc(teamRef, { score: currentScore + totalPoints, teamName: TEAM_MAP[userData.teamId] }, { merge: true });
-    }
+  const now = Date.now();
+  if(decodedText === lastScannedId && (now - lastScannedAt) < SCAN_COOLDOWN_MS){
+    return;
   }
 
-  const mySnap = await get(ref(rtdb, `users/${currentUserId}/bingoData`));
-  const targetSnap = await get(ref(rtdb, `users/${decodedText}/bingoData`));
+  isScanProcessing = true;
+  lastScannedId = decodedText;
+  lastScannedAt = now;
+
+  try{
+    await handleScanLogic(decodedText);
+  }catch(err){
+    console.error('掃描處理失敗:', err);
+    alert('掃描時發生錯誤，請重新掃描一次!');
+  }finally{
+    isScanProcessing = false;
+  }
+}
+
+async function handleScanLogic(decodedText) {
+  const myUid = currentUserId;
+  const otherUid = decodedText;
+
+  const myRef = doc(db, 'users', myUid);
+  const otherRef = doc(db, 'users', otherUid);
+
+  const otherUserSnapCheck = await getDoc(otherRef);
+  if (!otherUserSnapCheck.exists()) {
+    return alert('掃描失敗：對方的帳號資料不存在！');
+  }
+
+  let resultMessage = '';
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const mySnap = await transaction.get(myRef);
+      const otherSnap = await transaction.get(otherRef);
+
+      if (!mySnap.exists() || !otherSnap.exists()) {
+        throw new Error('使用者資料不存在');
+      }
+
+      const myData = mySnap.data();
+      const otherData = otherSnap.data();
+
+      const myScanned = myData.scannedList || [];
+
+      if (myScanned.includes(otherUid)) {
+        resultMessage = '這位新朋友已經掃描過了哦！';
+        return;
+      }
+
+      const newMyScanned = [...myScanned, otherUid];
+      const newOtherScanned = [...(otherData.scannedList || []), myUid];
+
+      const myResult = computeGoalsAndPoints(myData.unlockedGoals || [], newMyScanned.length);
+      const otherResult = computeGoalsAndPoints(otherData.unlockedGoals || [], newOtherScanned.length);
+
+      transaction.update(myRef, {
+        scannedList: newMyScanned,
+        unlockedGoals: myResult.goals,
+      });
+      transaction.update(otherRef, {
+        scannedList: newOtherScanned,
+        unlockedGoals: otherResult.goals,
+      });
+
+      // 先把「小隊 -> 要加的分數」彙整起來，同隊的話分數會自動加總，
+      // 避免對同一份小隊文件 get() 兩次
+      const teamPointsMap = {};
+      if (myData.teamId) {
+        teamPointsMap[myData.teamId] = (teamPointsMap[myData.teamId] || 0) + myResult.points;
+      }
+      if (otherData.teamId) {
+        teamPointsMap[otherData.teamId] = (teamPointsMap[otherData.teamId] || 0) + otherResult.points;
+      }
+
+      for (const teamId of Object.keys(teamPointsMap)) {
+        const teamRef = doc(db, 'teams', teamId);
+        const teamSnap = await transaction.get(teamRef);
+        const currentScore = teamSnap.exists() ? (teamSnap.data().score || 0) : 0;
+        transaction.set(teamRef, {
+          score: currentScore + teamPointsMap[teamId],
+          teamName: TEAM_MAP[teamId],
+        }, { merge: true });
+      }
+
+      resultMessage = `🤝 成功解鎖新朋友！你和對方的小隊都獲得了積分！`;
+    });
+  } catch (err) {
+    console.error('交友交易失敗：', err);
+    alert('掃描時發生錯誤，請重新掃描一次！');
+    return;
+  }
+
+  // --- 賓果比對邏輯（維持原本，只影響掃描者自己） ---
+  const mySnap = await get(ref(rtdb, `users/${myUid}/bingoData`));
+  const targetSnap = await get(ref(rtdb, `users/${otherUid}/bingoData`));
 
   if (mySnap.exists() && targetSnap.exists()) {
-    const myData = mySnap.val();
-    const targetData = targetSnap.val();
+    const myBingoData = mySnap.val();
+    const targetBingoData = targetSnap.val();
 
-    if (myData.isLocked && targetData.isLocked) {
-      let updatedMatched = myData.matched || Array(25).fill(false);
+    if (myBingoData.isLocked && targetBingoData.isLocked) {
+      let updatedMatched = myBingoData.matched || Array(25).fill(false);
+      let otherUpdatedMatched = targetBingoData.matched || Array(25).fill(false);
       let hasNewMatch = false;
 
       for (let i = 0; i < 25; i++) {
-        if (myData.answers[i] === targetData.answers[i] && myData.answers[i] !== "") {
+        if (myBingoData.answers[i] === targetBingoData.answers[i] && myBingoData.answers[i] !== "") {
           if (!updatedMatched[i]) {
             updatedMatched[i] = true;
             hasNewMatch = true;
+          }
+          if (!otherUpdatedMatched[i]) {
+            otherUpdatedMatched[i] = true;
           }
         }
       }
 
       if (hasNewMatch) {
-        const lines = calculateBingoLines(updatedMatched);
-        await update(ref(rtdb, `users/${currentUserId}/bingoData`), { matched: updatedMatched, lines });
-        alert("🎉 掃描成功！發現與對方的答案有重疊，賓果格子已點亮！");
+        const myLines = calculateBingoLines(myUpdateMatched);
+        const otherLines = calculateBingoLines(otherUpdatedMatched);
+
+        await Promise.all([
+          update(ref(rtdb,'user/${myUid}/bingoData'),{matched: myUpdateMatched, lines: myLines}),
+          update(ref(rtdb,'user/${otherUid}/bingoData'),{matched: otherUpdateMatched, lines: otherLines})
+        ]);
+
+        alert("掃描成功!(噴花 噴花");
         return;
       }
     }
   }
 
-  if (isNewFriend) {
-    alert(`🤝 成功解鎖新朋友！小隊獲得積分！`);
-  } else {
-    alert('這位新朋友已經掃描過了哦！');
+  alert(resultMessage);
+}
+
+// 計算成就清單與這次獲得的積分（純函式，不做任何 Firestore 寫入）
+function computeGoalsAndPoints(currentGoals, newFriendCount) {
+  let goals = [...currentGoals];
+  let points = 50; // 每次成功交友的基本分
+
+  if (newFriendCount === 1 && !goals.includes('🥉 社交新星：結交第 1 位朋友')) {
+    goals.push('🥉 社交新星：結交第 1 位朋友');
+    points += 10;
+  } else if (newFriendCount === 3 && !goals.includes('🥈 破冰達人：結交 3 位朋友')) {
+    goals.push('🥈 破冰達人：結交 3 位朋友');
+    points += 30;
+  } else if (newFriendCount === 5 && !goals.includes('🥇 社交王者：結交 5 位朋友')) {
+    goals.push('🥇 社交王者：結交 5 位朋友');
+    points += 50;
   }
+
+  return { goals, points };
 }
 
 // --- 全域賽事狀態監聽：新增邊緣觸發彈窗 + 可逆的 UI 開關 ---
