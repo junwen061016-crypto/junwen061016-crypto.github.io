@@ -1,167 +1,127 @@
-// ==========================================
-// 1. Firebase 與第三方套件引入 (CDN 完整路徑，適用於 GitHub Pages)
-// ==========================================
-console.log("🔥 main.js 已經成功載入並執行！");
-import { auth, db, rtdb } from "./firebase.js";
-import { 
-  signInWithEmailAndPassword, 
-  onAuthStateChanged, 
-  signOut 
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
-  collection, 
-  deleteDoc, 
-  onSnapshot 
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { 
-  getDatabase, 
-  ref, 
-  set, 
-  get, 
-  update, 
-  onValue 
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { auth, db, rtdb } from './firebase.js';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut,
+} from 'firebase/auth';
+import {
+  doc, getDoc, setDoc, updateDoc, onSnapshot,
+  collection, query, orderBy,
+} from 'firebase/firestore';
+import { Html5QrcodeScanner } from 'html5-qrcode';
+import QRCode from 'qrcode';
+import { ref, get, set, update, onValue } from "firebase/database";
 
-import { Html5QrcodeScanner } from 'https://esm.run/html5-qrcode';
-import QRCode from 'https://esm.run/qrcode';
-
-// ==========================================
-// 2. 全域變數定義
-// ==========================================
+let scannerInstance = null;
 let currentUserId = null;
 let isBingoInitialized = false;
-let scannerInstance = null;
-window.currentUserUid = null;     // 供小隊解鎖同步使用
-window.currentBingoLines = 0;     // 記錄目前的賓果連線數
 
-// 全域設定文件參照 (Firestore)
-const globalRef = doc(db, "gameStatus", "global"); 
+const TEAM_MAP = {
+  team_1: '第一小隊 🦁', team_2: '第二小隊 🐯', team_3: '第三小隊 🦅',
+  team_4: '第四小隊 🦊', team_5: '第五小隊 🐼',
+};
 
-// ==========================================
-// 3. 監聽全域賽事狀態（包含 RTDB 重置與 UI 狀態提示）
-// ==========================================
-let lastResetTime = null; // 確保第一次讀取時能正確初始化
+const ALL_GOALS = [
+  '🌱 破冰者：初次啟航',
+  '🥉 社交新星：結交第 1 位朋友',
+  '🥈 破冰達人：結交 3 位朋友',
+  '🥇 社交王者：結交 5 位朋友',
+];
 
-onSnapshot(globalRef, (docSnap) => {
-  if (!docSnap.exists()) return;
-  const status = docSnap.data();
-  console.log("偵測到 Firestore 全域狀態變化:", status);
+// --- 綁定靜態按鈕：不管 DOMContentLoaded 是否已經觸發過都能綁到 ---
+function bindStaticButtons() {
+  const loginBtn = document.getElementById('btn-login');
+  if (loginBtn) loginBtn.addEventListener('click', handleLogin);
 
-  // 初始化時記錄當下的 bingoResetAt，避免剛重新整理頁面就誤觸重置
-  if (lastResetTime === null) {
-    lastResetTime = status.bingoResetAt || 0;
-    return;
+  const logoutBtn = document.getElementById('btn-logout');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+      try {
+        await signOut(auth);
+      } catch (e) {
+        console.error('登出失敗：', e);
+        alert('登出失敗，請重新整理頁面再試一次');
+      }
+    });
   }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bindStaticButtons);
+} else {
+  bindStaticButtons();
+}
 
-  // 檢查後台是否有發動「重新填寫/重啟賓果」的新時間戳記 -> 完整重置 RTDB
-  if (status.bingoResetAt && status.bingoResetAt !== lastResetTime) {
-    lastResetTime = status.bingoResetAt;
-    console.log("💡 偵測到新的重置時間戳記，準備完全清空與解鎖賓果！");
+async function ensureTeamDoc(teamId) {
+  const teamRef = doc(db, 'teams', teamId);
+  const snap = await getDoc(teamRef);
+  if (!snap.exists()) {
+    await setDoc(teamRef, { teamName: TEAM_MAP[teamId] || teamId, score: 0 });
+  }
+}
 
-    if (currentUserId) {
-      isBingoInitialized = false;
+async function handleLogin() {
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+  if (!email || !password) return alert('請輸入完整資料');
 
-      // 寫入 RTDB：徹底回到初始狀態（清空答案、解除鎖定、歸零連線與匹配狀態）
-      update(ref(rtdb, `users/${currentUserId}/bingoData`), {
-        isLocked: false,
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (err) {
+    try {
+      const res = await createUserWithEmailAndPassword(auth, email, password);
+      const teams = ['team_1', 'team_2', 'team_3', 'team_4', 'team_5'];
+      const randomTeam = teams[Math.floor(Math.random() * teams.length)];
+
+      await setDoc(doc(db, 'users', res.user.uid), {
+        email: email,
+        teamId: randomTeam,
+        teamRevealed: true,
+        scannedList: [],
+        unlockedGoals: ['🌱 破冰者：初次啟航'],
+      });
+
+      await set(ref(rtdb, `users/${res.user.uid}/bingoData`), {
         answers: Array(25).fill(""),
+        isLocked: false,
         matched: Array(25).fill(false),
         lines: 0
-      }).then(() => {
-        window.currentBingoLines = 0;
-        console.log("✨ 賓果遊戲已完全回到初始狀態！");
-      }).catch((error) => {
-        console.error("❌ 重置 RTDB 賓果失敗：", error);
       });
+
+      // 確保排行榜一開始就看得到這個小隊
+      await ensureTeamDoc(randomTeam);
+
+    } catch (createErr) {
+      alert('登入/註冊失敗：' + createErr.message);
     }
   }
-
-  // 處理「賓果遊戲結束」的畫面提示 UI
-  const bingoSection = document.getElementById("bingo-grid")?.closest(".card") || document.getElementById("game-section");
-  if (status.isBingoEnded) {
-    showGameNotice("bingo-notice", "🎯 賓果遊戲已結束！", bingoSection);
-  } else {
-    removeGameNotice("bingo-notice");
-  }
-
-  // 處理「掃碼交友結束」的畫面提示 UI
-  const scannerContainer = document.getElementById("reader");
-  if (status.isScanEnded) {
-    if (scannerContainer) scannerContainer.style.display = "none";
-    showGameNotice("scan-notice", "📷 掃碼交友已結束！", document.getElementById("login-section")?.parentNode);
-  } else {
-    if (scannerContainer) scannerContainer.style.display = "block";
-    removeGameNotice("scan-notice");
-  }
-
-  // 處理「最終結算」狀態
-  if (status.isFinalResult) {
-    document.body.innerHTML = `
-      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; background: #f0f2f5; text-align: center; padding: 20px;">
-        <h1 style="color: #333; font-size: 2.5rem;">🏆 賽事已進入最終結算</h1>
-        <p style="color: #666; font-size: 1.2rem; margin-top: 10px;">感謝大家的熱情參與，請靜候頒獎與最終結果公布！</p>
-      </div>
-    `;
-  }
-});
-
-// 輔助函式：動態顯示頂部提示條
-function showGameNotice(id, message, parentElement) {
-  let notice = document.getElementById(id);
-  if (!notice && parentElement) {
-    notice = document.createElement("div");
-    notice.id = id;
-    notice.style.cssText = "background: #ff4d4f; color: white; padding: 10px; text-align: center; font-weight: bold; margin-bottom: 10px; border-radius: 4px; z-index: 999;";
-    parentElement.prepend(notice);
-  }
-  if (notice) notice.innerText = message;
 }
 
-// 輔助函式：移除提示條
-function removeGameNotice(id) {
-  const notice = document.getElementById(id);
-  if (notice) notice.remove();
-}
-
-// ==========================================
-// 4. 使用者登入狀態監聽
-// ==========================================
 onAuthStateChanged(auth, (user) => {
   if (user) {
     currentUserId = user.uid;
-    window.currentUserUid = user.uid;
+    window.currentUserId = user.uid;
     isBingoInitialized = false;
-    
+
     document.getElementById('login-section').style.display = 'none';
     document.getElementById('game-section').style.display = 'block';
 
-    QRCode.toCanvas(document.getElementById('qr-canvas'), user.uid, {
-      width: 160,
-    });
+    QRCode.toCanvas(document.getElementById('qr-canvas'), user.uid, { width: 160 });
 
     initUserData(user.uid);
     initBingoGame(user.uid);
-    // 註：此版本尚未呼叫 initLeaderboard()
+    initLeaderboard();
 
     if (!scannerInstance) {
-      scannerInstance = new Html5QrcodeScanner('reader', {
-        fps: 10,
-        qrbox: 250,
-      });
+      scannerInstance = new Html5QrcodeScanner('reader', { fps: 10, qrbox: 250 });
       scannerInstance.render(onScanSuccess, () => {});
     }
   } else {
     currentUserId = null;
-    window.currentUserUid = null;
+    window.currentUserId = null;
     isBingoInitialized = false;
-    
     document.getElementById('login-section').style.display = 'block';
     document.getElementById('game-section').style.display = 'none';
-    
     if (scannerInstance) {
       scannerInstance.clear().catch((e) => console.error(e));
       scannerInstance = null;
@@ -169,91 +129,67 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-// ==========================================
-// 5. 初始化使用者資料與即時監聽
-// ==========================================
 function initUserData(uid) {
   const userRef = doc(db, 'users', uid);
   onSnapshot(userRef, (docSnap) => {
     if (!docSnap.exists()) return;
     const data = docSnap.data();
 
-    const emailDisplay = document.getElementById('profile-email-display');
-    if (emailDisplay) emailDisplay.innerText = data.email || '';
-    
-    const teamMap = {
-      team_1: '第一小隊',
-      team_2: '第二小隊',
-      team_3: '第三小隊',
-      team_4: '第四小隊',
-      team_5: '第五小隊',
-    };
+    document.getElementById('profile-email-display').innerText = data.email;
 
-    const lines = window.currentBingoLines || 0; 
+    const lines = window.currentBingoLines || 0;
     const teamDisplayEl = document.getElementById('profile-team-display');
-
     if (teamDisplayEl) {
-      if (lines >= 5) {
-        teamDisplayEl.innerText = `所屬小隊：${teamMap[data.teamId] || data.teamId}`;
-      } else {
-        teamDisplayEl.innerText = `所屬小隊：🔒 達成 5 條賓果連線後解鎖`;
-      }
+      teamDisplayEl.innerText = lines >= 5
+        ? `所屬小隊：${TEAM_MAP[data.teamId] || data.teamId}`
+        : `所屬小隊：🔒 達成 5 條賓果連線後解鎖`;
     }
 
-    const scanCountEl = document.getElementById('stat-scan-count');
-    if (scanCountEl) {
-      scanCountEl.innerText = (data.scannedList || []).length;
-    }
+    document.getElementById('stat-scan-count').innerText = (data.scannedList || []).length;
 
+    // --- 成就列表：永遠顯示全部項目，已達成才變藍色 ---
     const goalsEl = document.getElementById('goals-list');
     if (goalsEl) {
+      const unlocked = data.unlockedGoals || [];
       goalsEl.innerHTML = '';
-      (data.unlockedGoals || []).forEach((goal) => {
+      ALL_GOALS.forEach((goal) => {
+        const isUnlocked = unlocked.includes(goal);
         const li = document.createElement('li');
-        li.className = 'badge';
+        li.className = isUnlocked ? 'badge unlocked' : 'badge locked';
         li.innerText = goal;
+        li.style.cssText = `
+          padding: 8px 12px; margin-bottom: 6px; border-radius: 6px;
+          font-weight: bold; transition: all 0.3s;
+          background: ${isUnlocked ? '#007bff' : '#e0e0e0'};
+          color: ${isUnlocked ? '#fff' : '#888'};
+        `;
         goalsEl.appendChild(li);
       });
     }
-  });
+  }, (err) => console.error('讀取個人資料失敗：', err));
 }
 
-// ==========================================
-// 6. 初始化賓果遊戲與即時讀取 RTDB 題目 (config/bingo_questions)
-// ==========================================
-function initBingoGame(uid) {
-  const questionsRef = ref(rtdb, "config/bingo_questions");
-  
-  onValue(questionsRef, (snapshot) => {
-    let questions = [];
-    if (snapshot.exists()) {
-      questions = snapshot.val();
-    } else {
-      questions = Array(25).fill("預設題目");
-    }
+function initBingoGame(userId) {
+  let currentQuestions = Array(25).fill("靈魂共鳴題目");
 
-    const userBingoRef = ref(rtdb, `users/${uid}/bingoData`);
-    onValue(userBingoRef, (userSnap) => {
-      let bingoData = userSnap.val();
+  get(ref(rtdb, "config/bingo_questions")).then((questionsSnap) => {
+    if (questionsSnap.exists()) currentQuestions = questionsSnap.val();
+    setupListener();
+  }).catch(() => setupListener());
+
+  function setupListener() {
+    const userBingoRef = ref(rtdb, `users/${userId}/bingoData`);
+    onValue(userBingoRef, (snapshot) => {
+      let bingoData = snapshot.val();
       if (!bingoData) {
-        bingoData = {
-          answers: Array(25).fill(""),
-          isLocked: false,
-          matched: Array(25).fill(false),
-          lines: 0
-        };
+        bingoData = { answers: Array(25).fill(""), isLocked: false, matched: Array(25).fill(false), lines: 0 };
         set(userBingoRef, bingoData);
       }
-      
-      window.currentBingoLines = bingoData.lines || 0;
-      renderBingoBoardUI(questions, bingoData, uid);
+      renderBingoBoardUI(currentQuestions, bingoData, userId);
     });
-  });
+  }
 }
 
-// ==========================================
-// 7. 渲染 5x5 賓果盤介面
-// ==========================================
 function renderBingoBoardUI(questions, bingoData, userId) {
   let boardContainer = document.getElementById("bingo-grid");
   if (!boardContainer) return;
@@ -290,7 +226,6 @@ function renderBingoBoardUI(questions, bingoData, userId) {
       cell.appendChild(input);
       boardContainer.appendChild(cell);
     });
-
     isBingoInitialized = true;
   }
 
@@ -309,9 +244,8 @@ function renderBingoBoardUI(questions, bingoData, userId) {
       if (bingoData.isLocked) {
         if (input) input.disabled = true;
         cell.style.background = "#e0e0e0";
-      } else {
-        if (input) input.disabled = false;
-        cell.style.background = ""; 
+      } else if (input) {
+        input.disabled = false;
       }
 
       if (bingoData.matched && bingoData.matched[index]) {
@@ -329,24 +263,13 @@ function renderBingoBoardUI(questions, bingoData, userId) {
       lockBtn = document.createElement("button");
       lockBtn.id = "btn-lock-bingo";
       lockBtn.innerText = "🔒 確認並鎖定賓果答案";
-      lockBtn.style.marginTop = "15px";
-      lockBtn.style.background = "#28a745";
-      lockBtn.style.color = "#fff";
-      lockBtn.style.padding = "10px";
-      lockBtn.style.width = "100%";
-      lockBtn.style.border = "none";
-      lockBtn.style.borderRadius = "5px";
-      lockBtn.style.cursor = "pointer";
-      
+      lockBtn.style.cssText = "margin-top:15px; background:#28a745; color:#fff; padding:10px; width:100%; border:none; border-radius:5px; cursor:pointer;";
       lockBtn.onclick = async () => {
         if (!bingoData.answers || bingoData.answers.some(a => !a)) {
           return alert("請把 25 格的答案都填滿才可以鎖定！");
         }
         if (confirm("答案鎖定後將無法修改，直到控制台重置，確定送出嗎？")) {
-          await update(ref(rtdb, `users/${userId}/bingoData`), {
-            answers: bingoData.answers,
-            isLocked: true
-          });
+          await update(ref(rtdb, `users/${userId}/bingoData`), { answers: bingoData.answers, isLocked: true });
           alert("答案鎖定成功！");
         }
       };
@@ -365,14 +288,22 @@ function renderBingoBoardUI(questions, bingoData, userId) {
   }
 }
 
-// ==========================================
-// 8. 更新小隊解鎖狀態介面
-// ==========================================
+function calculateBingoLines(matchedArray) {
+  const winningPatterns = [
+    [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
+    [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
+    [0,6,12,18,24], [4,8,12,16,20]
+  ];
+  let lineCount = 0;
+  winningPatterns.forEach(pattern => {
+    if (pattern.every(index => matchedArray[index])) lineCount++;
+  });
+  return lineCount;
+}
+
 function updateTeamUnlockStatus(lines) {
   window.currentBingoLines = lines;
-  if (window.currentUserUid && typeof initUserData === 'function') {
-    initUserData(window.currentUserUid);
-  }
+  if (window.currentUserId) initUserData(window.currentUserId);
 
   let teamInfoEl = document.getElementById("hidden-team-info");
   if (!teamInfoEl) {
@@ -382,21 +313,174 @@ function updateTeamUnlockStatus(lines) {
     const gameSection = document.getElementById('game-section');
     if (gameSection) gameSection.appendChild(teamInfoEl);
   }
-
-  if (teamInfoEl) {
-    if (lines >= 5) {
-      teamInfoEl.innerHTML = `🏆 恭喜達成 ${lines} 條線！小隊已解鎖：<span style="color: #d9534f; font-size: 1.2rem;">神祕小隊</span>`;
-      teamInfoEl.style.border = "2px solid #ffc107";
-    } else {
-      teamInfoEl.innerHTML = `🔒 目前已達成連線：${lines} / 5 條 (達成 5 條線即可解鎖神祕小隊)`;
-      teamInfoEl.style.border = "1px dashed #ccc";
-    }
+  if (lines >= 5) {
+    teamInfoEl.innerHTML = `🏆 恭喜達成 ${lines} 條線！小隊已解鎖：<span style="color:#d9534f;font-size:1.2rem;">神祕小隊</span>`;
+    teamInfoEl.style.border = "2px solid #ffc107";
+  } else {
+    teamInfoEl.innerHTML = `🔒 目前已達成連線：${lines} / 5 條 (達成 5 條線即可解鎖神祕小隊)`;
+    teamInfoEl.style.border = "1px dashed #ccc";
   }
 }
 
-// ==========================================
-// 9. 掃碼成功回呼函式
-// ==========================================
-function onScanSuccess(decodedText) {
-  console.log("掃描成功：", decodedText);
+function initLeaderboard() {
+  const q = query(collection(db, 'teams'), orderBy('score', 'desc'));
+  onSnapshot(q, (snapshot) => {
+    const list = document.getElementById('leaderboard');
+    if (!list) return;
+    list.innerHTML = '';
+    if (snapshot.empty) {
+      list.innerHTML = '<li>目前尚無積分紀錄</li>';
+      return;
+    }
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${TEAM_MAP[docSnap.id] || docSnap.id}</span> <strong>${data.score || 0} 分</strong>`;
+      list.appendChild(li);
+    });
+  }, (err) => {
+    console.error('讀取排行榜失敗：', err);
+    const list = document.getElementById('leaderboard');
+    if (list) list.innerHTML = '<li>排行榜載入失敗，請稍後再試</li>';
+  });
 }
+
+async function onScanSuccess(decodedText) {
+  if (!currentUserId) return;
+  if (decodedText === currentUserId) return alert("不能掃描自己！");
+
+  const userRef = doc(db, 'users', currentUserId);
+  const userSnap = await getDoc(userRef);
+  if (!userSnap.exists()) return;
+
+  const userData = userSnap.data();
+  const scannedList = userData.scannedList || [];
+  let isNewFriend = false;
+  let bonusPoints = 0;
+  let newGoals = [...(userData.unlockedGoals || [])];
+
+  if (!scannedList.includes(decodedText)) {
+    isNewFriend = true;
+    const newScannedList = [...scannedList, decodedText];
+    const count = newScannedList.length;
+
+    if (count === 1 && !newGoals.includes('🥉 社交新星：結交第 1 位朋友')) {
+      newGoals.push('🥉 社交新星：結交第 1 位朋友');
+      bonusPoints = 10;
+    } else if (count === 3 && !newGoals.includes('🥈 破冰達人：結交 3 位朋友')) {
+      newGoals.push('🥈 破冰達人：結交 3 位朋友');
+      bonusPoints = 30;
+    } else if (count === 5 && !newGoals.includes('🥇 社交王者：結交 5 位朋友')) {
+      newGoals.push('🥇 社交王者：結交 5 位朋友');
+      bonusPoints = 50;
+    }
+
+    await updateDoc(userRef, { scannedList: newScannedList, unlockedGoals: newGoals });
+
+    // 每成功交友一次基本 +50 分，達成里程碑再加成
+    const totalPoints = 50 + bonusPoints;
+    if (userData.teamId) {
+      const teamRef = doc(db, 'teams', userData.teamId);
+      const teamSnap = await getDoc(teamRef);
+      const currentScore = teamSnap.exists() ? teamSnap.data().score || 0 : 0;
+      await setDoc(teamRef, { score: currentScore + totalPoints, teamName: TEAM_MAP[userData.teamId] }, { merge: true });
+    }
+  }
+
+  const mySnap = await get(ref(rtdb, `users/${currentUserId}/bingoData`));
+  const targetSnap = await get(ref(rtdb, `users/${decodedText}/bingoData`));
+
+  if (mySnap.exists() && targetSnap.exists()) {
+    const myData = mySnap.val();
+    const targetData = targetSnap.val();
+
+    if (myData.isLocked && targetData.isLocked) {
+      let updatedMatched = myData.matched || Array(25).fill(false);
+      let hasNewMatch = false;
+
+      for (let i = 0; i < 25; i++) {
+        if (myData.answers[i] === targetData.answers[i] && myData.answers[i] !== "") {
+          if (!updatedMatched[i]) {
+            updatedMatched[i] = true;
+            hasNewMatch = true;
+          }
+        }
+      }
+
+      if (hasNewMatch) {
+        const lines = calculateBingoLines(updatedMatched);
+        await update(ref(rtdb, `users/${currentUserId}/bingoData`), { matched: updatedMatched, lines });
+        alert("🎉 掃描成功！發現與對方的答案有重疊，賓果格子已點亮！");
+        return;
+      }
+    }
+  }
+
+  if (isNewFriend) {
+    alert(`🤝 成功解鎖新朋友！小隊獲得積分！`);
+  } else {
+    alert('這位新朋友已經掃描過了哦！');
+  }
+}
+
+// --- 全域賽事狀態監聽：新增邊緣觸發彈窗 + 可逆的 UI 開關 ---
+let prevBingoEnded = false;
+let prevScanEnded = false;
+
+function ensureScanOverlay() {
+  let overlay = document.getElementById('scan-ended-overlay');
+  const readerEl = document.getElementById('reader');
+  if (!overlay && readerEl && readerEl.parentNode) {
+    overlay = document.createElement('p');
+    overlay.id = 'scan-ended-overlay';
+    overlay.style.cssText = "text-align:center; color:#e74c3c; font-weight:bold; padding:20px; display:none;";
+    overlay.innerText = "📷 掃碼交友時間已截止！";
+    readerEl.parentNode.insertBefore(overlay, readerEl.nextSibling);
+  }
+  return overlay;
+}
+
+onSnapshot(doc(db, 'gameStatus', 'global'), (docSnap) => {
+  if (!docSnap.exists()) return;
+  const status = docSnap.data();
+
+  // 賓果遊戲開關（可逆）
+  const bingoGrid = document.getElementById('bingo-grid');
+  if (bingoGrid) {
+    bingoGrid.style.pointerEvents = status.isBingoEnded ? 'none' : '';
+    bingoGrid.style.opacity = status.isBingoEnded ? '0.5' : '';
+  }
+  if (status.isBingoEnded && !prevBingoEnded) alert('🎯 賓果遊戲時間已結束！');
+  prevBingoEnded = !!status.isBingoEnded;
+
+  // 掃碼交友開關（可逆，不破壞掃描器 DOM）
+  const overlay = ensureScanOverlay();
+  const readerEl = document.getElementById('reader');
+  if (overlay && readerEl) {
+    overlay.style.display = status.isScanEnded ? 'block' : 'none';
+    readerEl.style.display = status.isScanEnded ? 'none' : 'block';
+  }
+  if (status.isScanEnded && !prevScanEnded) alert('📷 掃碼交友時間已截止！');
+  prevScanEnded = !!status.isScanEnded;
+
+  // 最終結算（可逆）
+  const gameSection = document.getElementById('game-section');
+  let finalDiv = document.getElementById('final-screen');
+  if (status.isFinalResult) {
+    if (gameSection) gameSection.style.display = 'none';
+    if (!finalDiv) {
+      finalDiv = document.createElement('div');
+      finalDiv.id = 'final-screen';
+      finalDiv.className = 'card';
+      finalDiv.innerHTML = `
+        <h1 style="color:#e74c3c;text-align:center;">🏆 靈魂共鳴大賽・最終結算</h1>
+        <p style="text-align:center;font-size:1.1rem;">活動圓滿結束！請看大螢幕揭曉最終冠軍小隊！</p>
+      `;
+      document.body.appendChild(finalDiv);
+    }
+    finalDiv.style.display = 'block';
+  } else {
+    if (finalDiv) finalDiv.style.display = 'none';
+    if (gameSection && currentUserId) gameSection.style.display = 'block';
+  }
+}, (err) => console.error('讀取賽事狀態失敗：', err));
