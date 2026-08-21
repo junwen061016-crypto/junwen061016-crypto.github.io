@@ -434,6 +434,23 @@ async function handleScanLogic(decodedText) {
       const myResult = computeGoalsAndPoints(myData.unlockedGoals || [], newMyScanned.length);
       const otherResult = computeGoalsAndPoints(otherData.unlockedGoals || [], newOtherScanned.length);
 
+      const teamPointsMap = {};
+      if (myData.teamId) {
+        teamPointsMap[myData.teamId] = (teamPointsMap[myData.teamId] || 0) + myResult.points;
+      }
+      if (otherData.teamId) {
+        teamPointsMap[otherData.teamId] = (teamPointsMap[otherData.teamId] || 0) + otherResult.points;
+      }
+
+      const teamSnaps ={};
+      for(const teamId of Object.keys(teamPointsMap)){
+        const teamRef = doc(db, 'teams',teamId);
+        teamSnaps[teamId]={
+          ref : teamRef,
+          snap : await transaction.get(teamRef),
+        }
+      }
+
       transaction.update(myRef, {
         scannedList: newMyScanned,
         unlockedGoals: myResult.goals,
@@ -445,13 +462,7 @@ async function handleScanLogic(decodedText) {
 
       // 先把「小隊 -> 要加的分數」彙整起來，同隊的話分數會自動加總，
       // 避免對同一份小隊文件 get() 兩次
-      const teamPointsMap = {};
-      if (myData.teamId) {
-        teamPointsMap[myData.teamId] = (teamPointsMap[myData.teamId] || 0) + myResult.points;
-      }
-      if (otherData.teamId) {
-        teamPointsMap[otherData.teamId] = (teamPointsMap[otherData.teamId] || 0) + otherResult.points;
-      }
+      
 
       for (const teamId of Object.keys(teamPointsMap)) {
         const teamRef = doc(db, 'teams', teamId);
