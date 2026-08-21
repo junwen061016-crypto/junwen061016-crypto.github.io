@@ -563,8 +563,6 @@ async function resetPlayerBingoData(uid) {
 
   await set(ref(rtdb, `users/${uid}/bingoData`), resetData);
 
-  const grid = document.getElementById('bingo-grid');
-  if (grid) grid.innerHTML = '';
 
   alert('🔄 賓果遊戲已重置，請重新填寫答案！');
 }
