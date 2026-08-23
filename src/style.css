@@ -4,18 +4,17 @@
    ============================================ */
 
    :root {
-    --color-bg: #FAEDE7;
-    --color-card-neutral: #E5DFC8;   /* 米杏卡其：個人資料卡、成就、排行榜 */
-    --color-card-qr: #8CA3A6;        /* 霧灰藍：個人 QR Code */
-    --color-card-scan: #C99AA1;      /* 霧玫瑰粉：掃碼交友 */
-    --color-card-white: #ffffff;     /* 賓果卡維持白底，方便閱讀輸入框 */
+    --color-bg: #F9F5E2;             /* 整體背景色 */
+    --color-card-neutral: #E5E3D0;   /* 米杏卡其：個人資料卡、成就、排行榜 */
+    --color-card-qr: #D098A6;        /* 霧灰藍：個人 QR Code 卡片 */
+    --color-card-scan: #43818C;/* 霧玫瑰粉：掃碼交友卡片 */
+    --color-card-white: #D098A6;     /* 賓果卡背景 */
     --color-accent: #A85D63;         /* 磚紅：標題、數字、強調文字 */
-    --color-accent-dark: #7A4247;
-    --color-teal: #6B8E7F;
-    --color-teal-dark: #56705F;
-    --color-ink: #333333;
-    --color-ink-soft: #6B6152;
-    --color-line: rgba(168, 93, 99, 0.2);
+    --color-accent-dark: #7A4247;    /* 深磚紅：hover 效果 */
+    --color-teal: #6B8E7F;           /* 按鈕主色 */
+    --color-teal-dark: #a8cab4;      /* 按鈕 hover 色 */
+    --color-ink: #333333;            /* 主要文字色 */
+    --color-ink-soft: #6B6152;       /* 次要文字色 */
   }
   
   * { box-sizing: border-box; }
