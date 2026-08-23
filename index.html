@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <img src="/welcome-banner.png" alt="Welcome to CSMU MU" class="welcome-banner" />
     <title>⚡ 靈魂共鳴・破冰交友大賽</title>
     <link rel="stylesheet" href="/src/style.css" />
   </head>
@@ -20,8 +21,8 @@
 
       <!-- 遊戲主畫面 (登入後顯示) -->
       <div id="game-section" style="display: none;">
-        
-        <!-- 個人檔案卡 -->
+
+        <!-- 1. 個人檔案卡 -->
         <div class="card profile-card">
           <div class="profile-header">
             <div class="profile-avatar">👤</div>
@@ -42,8 +43,8 @@
           </div>
         </div>
 
-        <!-- 個人 QR Code -->
-        <div class="card" style="text-align: center;">
+        <!-- 2. 個人 QR Code -->
+        <div class="card card-qr" style="text-align: center;">
           <h2>👤 個人 QR Code</h2>
           <div class="qr-container" style="display: flex; justify-content: center; margin: 15px 0;">
             <canvas id="qr-canvas"></canvas>
@@ -51,30 +52,30 @@
           <button id="btn-logout" style="background: #6c757d; width: auto; padding: 6px 15px;">登出帳號</button>
         </div>
 
-        <!-- 5x5 賓果共鳴填寫與顯示區塊 -->
-        <div class="card">
-          <h2>🎯 5x5 靈魂共鳴話題</h2>
-          <p style="font-size: 0.9rem; color: #666; margin-bottom: 10px;">請在對應的格子內填寫你的答案，全部填滿後點擊下方按鈕鎖定。</p>
-          <!-- JS 會在這裡動態生成 25 格的題目和輸入框 -->
-          <div id="bingo-grid" class="bingo-grid"></div>
-        </div>
-
-        <!-- 掃描器區塊 -->
-        <div class="card">
-          <h2>📷 掃描新朋友 QR Code</h2>
-          <div id="reader" style="width: 100%;"></div>
-        </div>
-
-        <!-- 社交成就解鎖進度 -->
+        <!-- 3. 社交成就解鎖進度 -->
         <div class="card">
           <h2>🏆 社交成就獎勵</h2>
           <ul id="goals-list" style="list-style: none; padding: 0;"></ul>
         </div>
 
-        <!-- 小隊排行榜 -->
+        <!-- 4. 小隊排行榜 -->
         <div class="card">
           <h2>📈 小隊榮譽排行榜</h2>
           <ul id="leaderboard" style="list-style: none; padding: 0;"></ul>
+        </div>
+
+        <!-- 5. 掃碼交友（掃描器） -->
+        <div class="card card-scan">
+          <h2>📷 掃描新朋友 QR Code</h2>
+          <div id="reader" style="width: 100%;"></div>
+        </div>
+
+        <!-- 6. 5x5 賓果共鳴填寫與顯示區塊 -->
+        <div class="card">
+          <h2>🎯 5x5 靈魂共鳴話題</h2>
+          <p style="font-size: 0.9rem; color: #666; margin-bottom: 10px;">請在對應的格子內填寫你的答案，全部填滿後點擊下方按鈕鎖定。</p>
+          <!-- JS 會在這裡動態生成 25 格的題目和輸入框 -->
+          <div id="bingo-grid" class="bingo-grid"></div>
         </div>
 
       </div>

@@ -268,8 +268,7 @@ function renderBingoBoardUI(questions, stateRef, userId) {
       }
 
       if (bingoData.matched && bingoData.matched[index]) {
-        cell.style.background = "#ffeb3b";
-        cell.style.boxShadow = "0 0 10px #ff9800";
+        cell.classList.add('matched-cell');
       }
     }
   });

@@ -1,125 +1,337 @@
-* { box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #FAEDE7; margin: 0; padding: 15px; color: #333; }
-.card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-h1 { text-align: center; color: #2c3e50; font-size: 1.5rem; }
-h2 { font-size: 1.1rem; margin-top: 0; color: #34495e; border-bottom: 2px solid #eee; padding-bottom: 8px; }
-input, select, button { width: 100%; padding: 12px; margin-top: 8px; border-radius: 8px; border: 1px solid #ccc; font-size: 1rem; }
-button { background: #4F6035; color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
-button:hover { background: #E7E57C; }
-#reader { width: 100%; border-radius: 12px; overflow: hidden; }
-.qr-container { text-align: center; margin: 15px 0; }
-canvas { max-width: 200px; height: auto; }
-ul { list-style: none; padding: 0; margin: 0; }
-li { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
-.badge { background: #e1f5fe; color: #0288d1; padding: 4px 8px; border-radius: 12px; font-size: 0.85rem; font-weight: bold; }
-.unlocked { background: #e8f5e9; color: #2e7d32; }
+/* ============================================
+   靈魂共鳴・破冰交友大賽
+   色彩系統：莫蘭迪暖調（米杏 × 霧粉 × 霧灰藍 × 磚紅）
+   ============================================ */
 
-/* 個人檔案卡專屬樣式 */
-.profile-card {
-  background: linear-gradient(135deg, #ffffff, #f8f9fa);
-  border: 1px solid #e1e4e8;
-  position: relative;
-  overflow: hidden;
-}
-.profile-header {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-bottom: 15px;
-}
-.profile-avatar {
-  width: 50px;
-  height: 50px;
-  background: #F0BEB7;
-  color: white;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
-}
-.profile-info h3 {
-  margin: 0 0 4px 0;
-  font-size: 1rem;
-  color: #2c3e50;
-  word-break: break-all;
-}
-.team-badge {
-  margin: 0;
-  font-size: 0.85rem;
-  color: #666;
-  font-weight: bold;
-}
-.profile-stats {
-  display: flex;
-  justify-content: space-around;
-  border-top: 1px solid #eee;
-  padding-top: 12px;
-  margin-top: 10px;
-}
-.stat-item {
-  text-align: center;
-}
-.stat-num {
-  display: block;
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: #007bff;
-}
-.stat-label {
-  font-size: 0.75rem;
-  color: #888;
-}
-
-/* 5x5 賓果格子樣式 */
-.bingo-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-  width: 100%;
-  margin-top: 10px;
-}
-
-.bingo-cell-item {
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  padding: 6px;
-  text-align: center;
-  box-sizing: border-box;
-}
-
-.bingo-cell-item input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 4px;
-  margin-top: 4px;
-}
-.bingo-cell {
-  background: #f8f9fa;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  padding: 8px 4px;
-  font-size: 0.75rem;
-  text-align: center;
-  cursor: pointer;
-  min-height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  word-break: break-all;
-  transition: all 0.2s;
-}
-.bingo-cell.matched {
-  background: #ffeb3b !important;
-  color: #333;
-  font-weight: bold;
-  box-shadow: 0 0 10px #ff9800;
-  border-color: #ff9800;
-  animation: pulse 1s infinite alternate;
-}
-@keyframes pulse {
-  0% { transform: scale(1); }
-  100% { transform: scale(1.05); }
-}
+   :root {
+    --color-bg: #FAEDE7;
+    --color-card-neutral: #E5DFC8;   /* 米杏卡其：個人資料卡、成就、排行榜 */
+    --color-card-qr: #8CA3A6;        /* 霧灰藍：個人 QR Code */
+    --color-card-scan: #C99AA1;      /* 霧玫瑰粉：掃碼交友 */
+    --color-card-white: #ffffff;     /* 賓果卡維持白底，方便閱讀輸入框 */
+    --color-accent: #A85D63;         /* 磚紅：標題、數字、強調文字 */
+    --color-accent-dark: #7A4247;
+    --color-teal: #6B8E7F;
+    --color-teal-dark: #56705F;
+    --color-ink: #333333;
+    --color-ink-soft: #6B6152;
+    --color-line: rgba(168, 93, 99, 0.2);
+  }
+  
+  * { box-sizing: border-box; }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--color-bg);
+    margin: 0;
+    padding: 15px;
+    color: var(--color-ink);
+    overflow-x: hidden;
+  }
+  
+  img {
+    max-width: 100%;
+  }
+  
+  .card {
+    background: var(--color-card-neutral);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+  
+  .welcome-banner {
+    display: block;
+    width: 100%;
+    max-width: 420px;
+    height: auto;
+    object-fit: contain;
+    margin: 0 auto 12px;
+ 
+  }
+  
+  h1 {
+    text-align: center;
+    color: var(--color-accent);
+    font-size: 1.5rem;
+  }
+  
+  h2 {
+    font-size: 1.1rem;
+    margin-top: 0;
+    color: var(--color-accent-dark);
+    border-bottom: 2px solid var(--color-line);
+    padding-bottom: 8px;
+  }
+  
+  input, select, button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 8px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 1rem;
+  }
+  
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(168, 93, 99, 0.15);
+  }
+  
+  button {
+    background: var(--color-teal);
+    color: white;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+  
+  button:hover { background: var(--color-teal-dark); }
+  
+  button:focus-visible {
+    outline: 3px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  
+  /* 登入卡：維持白底，跟遊戲主畫面區隔 */
+  #login-section { background: var(--color-card-white); }
+  #login-section h2 { text-align: center; border-bottom: none; }
+  
+  ul { list-style: none; padding: 0; margin: 0; }
+  
+  li {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(168, 93, 99, 0.15);
+  }
+  
+  li:last-child { border-bottom: none; }
+  
+  /* --- 1. 個人檔案卡 --- */
+  .profile-card {
+    background: var(--color-card-neutral);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .profile-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+  }
+  
+  .profile-avatar {
+    width: 50px;
+    height: 50px;
+    background: var(--color-card-qr);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+  }
+  
+  .profile-info h3 {
+    margin: 0 0 4px 0;
+    font-size: 1rem;
+    color: var(--color-ink);
+    word-break: break-all;
+  }
+  
+  .team-badge {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--color-accent-dark);
+    font-weight: bold;
+  }
+  
+  .profile-stats {
+    display: flex;
+    justify-content: space-around;
+    border-top: 1px solid var(--color-line);
+    padding-top: 12px;
+    margin-top: 10px;
+  }
+  
+  .stat-item { text-align: center; }
+  
+  .stat-num {
+    display: block;
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--color-accent);
+  }
+  
+  .stat-label {
+    font-size: 0.75rem;
+    color: var(--color-ink-soft);
+  }
+  
+  /* --- 2. 個人 QR Code 卡 --- */
+  .card-qr {
+    background: var(--color-card-qr);
+  }
+  
+  .card-qr h2 {
+    color: #ffffff;
+    border-bottom-color: rgba(255,255,255,0.3);
+  }
+  
+  .qr-container {
+    text-align: center;
+    margin: 15px 0;
+  }
+  
+  .qr-container canvas {
+    max-width: 200px;
+    height: auto;
+    border-radius: 12px;
+    border: 3px solid #ffffff;
+    background: #ffffff;
+    padding: 8px;
+  }
+  
+  #btn-logout {
+    background: var(--color-ink-soft) !important;
+  }
+  #btn-logout:hover { background: var(--color-ink) !important; }
+  
+  /* --- 3. 社交成就 --- */
+  .badge {
+    display: block;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    text-align: left;
+  }
+  
+  .badge.locked {
+    background: var(--color-card-white);
+    color: var(--color-ink-soft);
+    border: 1px dashed var(--color-line);
+  }
+  
+  .badge.unlocked {
+    background: var(--color-card-scan);
+    color: #ffffff;
+    border: none;
+  }
+  
+  /* --- 4. 小隊排行榜 --- */
+  #leaderboard li { color: var(--color-ink); }
+  
+  #leaderboard li strong {
+    color: var(--color-accent);
+    font-size: 1.1rem;
+  }
+  
+  /* --- 5. 掃碼交友（掃描器） --- */
+  .card-scan {
+    background: var(--color-card-scan);
+  }
+  
+  .card-scan h2 {
+    color: #ffffff;
+    border-bottom-color: rgba(255,255,255,0.3);
+  }
+  
+  #reader {
+    width: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 3px solid #ffffff;
+  }
+  
+  #scan-ended-overlay {
+    background: rgba(255,255,255,0.2);
+    border-radius: 12px;
+    padding: 24px !important;
+    color: #ffffff !important;
+  }
+  
+  /* --- 6. 5x5 賓果格 --- */
+  .card:has(#bingo-grid) {
+    background: var(--color-card-white);
+  }
+  
+  .bingo-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    width: 100%;
+    margin-top: 10px;
+  }
+  
+  .bingo-cell-item {
+    background: var(--color-bg);
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 6px;
+    text-align: center;
+    box-sizing: border-box;
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  .bingo-cell-item .cell-title,
+  .bingo-cell-item > div {
+    font-size: 11px;
+    color: var(--color-accent-dark);
+  }
+  
+  .bingo-cell-item input,
+  .bingo-cell-item .cell-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 4px;
+    margin-top: 4px;
+    font-size: 0.75rem;
+    border-radius: 6px;
+  }
+  
+  /* 連線成功高亮：main.js 是用 inline style 直接寫入顏色，
+     這裡用 !important 覆蓋掉黃色，改成磚紅色系 */
+  .bingo-cell-item[style*="background"] {
+    background: #F3DEDD !important;
+    box-shadow: 0 0 10px rgba(168, 93, 99, 0.5) !important;
+    border-color: var(--color-accent) !important;
+  }
+  
+  #btn-lock-bingo {
+    margin-top: 15px;
+    background: var(--color-accent) !important;
+  }
+  #btn-lock-bingo:hover { background: var(--color-accent-dark) !important; }
+  
+  /* --- 小隊解鎖狀態提示（賓果連線達標後顯示） --- */
+  #hidden-team-info {
+    background: var(--color-card-scan) !important;
+    border-color: var(--color-accent) !important;
+    color: #ffffff !important;
+  }
+  
+  /* --- 最終結算畫面 --- */
+  #final-screen h1 { color: var(--color-accent) !important; }
+  
+  /* --- RWD --- */
+  @media (max-width: 360px) {
+    .bingo-cell-item { min-height: 52px; }
+    .bingo-cell-item .cell-title { font-size: 10px; }
+    .stat-num { font-size: 1.1rem; }
+  }
+  
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
