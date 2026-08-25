@@ -303,11 +303,15 @@
   
   /* 連線成功高亮：main.js 是用 inline style 直接寫入顏色，
      這裡用 !important 覆蓋掉黃色，改成磚紅色系 */
-  .bingo-cell-item[style*="background"] {
-    background: #F3DEDD !important;
-    box-shadow: 0 0 10px rgba(168, 93, 99, 0.5) !important;
-    border-color: var(--color-accent) !important;
-  }
+  .bingo-cell-item.locked-cell {
+  background: #e0e0e0;
+}
+
+.bingo-cell-item.matched-cell {
+  background: #F3DEDD !important;
+  box-shadow: 0 0 10px rgba(168, 93, 99, 0.5) !important;
+  border-color: var(--color-accent) !important;
+}
   
   #btn-lock-bingo {
     margin-top: 15px;
