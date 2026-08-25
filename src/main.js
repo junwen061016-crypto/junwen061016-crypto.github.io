@@ -262,14 +262,16 @@ function renderBingoBoardUI(questions, stateRef, userId) {
 
       if (bingoData.isLocked) {
         if (input) input.disabled = true;
-        cell.style.background = "#e0e0e0";
+        cell.classList.add('locked-cell');
       } else if (input) {
         input.disabled = false;
+        cell.classList.remove('locked-cell');
       }
 
       if (bingoData.matched && bingoData.matched[index]) {
-        cell.style.background = "#ffeb3b";
-        cell.style.boxShadow = "0 0 10px #ff9800";
+        cell.classList.add('matched-cell');
+      } else {
+        cell.classList.remove('matched-cell');
       }
     }
   });
