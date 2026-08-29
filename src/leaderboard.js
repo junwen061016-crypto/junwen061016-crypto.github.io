@@ -21,6 +21,7 @@ onSnapshot(q, (snapshot) => {
   const teamsData = [];
 
   snapshot.forEach((docSnap) => {
+    if(docSnap.id === 'team_mystery') return;
     const data = docSnap.data();
     const score = data.score || 0;
     if (score > maxScore) maxScore = score;

@@ -24,7 +24,7 @@ const SCAN_COOLDOWN_MS = 3000;
 
 const TEAM_MAP = {
   team_1: '第一小隊 🦁', team_2: '第二小隊 🐯', team_3: '第三小隊 🦅',
-  team_4: '第四小隊 🦊', team_5: '第五小隊 🐼',
+  team_4: '第四小隊 🦊', team_5: '第五小隊 🐼', team_mystery: '神祕小隊',
 };
 
 const ALL_GOALS = [
@@ -68,6 +68,7 @@ async function ensureTeamDoc(teamId) {
 async function handleLogin() {
   const email = document.getElementById('email').value;
   const password = document.getElementById('password').value;
+  const nickname = document.getElementById('nickname').value.trim();
   if (!email || !password) return alert('請輸入完整資料');
 
   try {
@@ -80,6 +81,7 @@ async function handleLogin() {
 
       await setDoc(doc(db, 'users', res.user.uid), {
         email: email,
+        nickname: nickname || email.spilt('@')[0],
         teamId: randomTeam,
         teamRevealed: true,
         scannedList: [],
@@ -140,7 +142,7 @@ function initUserData(uid) {
     if (!docSnap.exists()) return;
     const data = docSnap.data();
 
-    document.getElementById('profile-email-display').innerText = data.email;
+    document.getElementById('profile-email-display').innerText = data.nickname || data.email;
 
     const lines = window.currentBingoLines || 0;
     const teamDisplayEl = document.getElementById('profile-team-display');
@@ -361,6 +363,7 @@ function initLeaderboard() {
       return;
     }
     snapshot.forEach((docSnap) => {
+      if(docSnap === 'team_mystery') return;
       const data = docSnap.data();
       const li = document.createElement('li');
       li.innerHTML = `<span>${TEAM_MAP[docSnap.id] || docSnap.id}</span> <strong>${data.score || 0} 分</strong>`;

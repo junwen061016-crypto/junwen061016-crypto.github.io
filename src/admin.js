@@ -255,6 +255,7 @@ function initAdminDashboard() {
             <option value="team_3" ${uData.teamId==='team_3'?'selected':''}>第三小隊</option>
             <option value="team_4" ${uData.teamId==='team_4'?'selected':''}>第四小隊</option>
             <option value="team_5" ${uData.teamId==='team_5'?'selected':''}>第五小隊</option>
+            <option value="team_mystery" ${uData.teamId==='team_mtstery'?'selected':''}>神祕小隊</option>
           </select>
           <button id="btn-update-team-${userDoc.id}" style="padding: 4px 8px; font-size: 0.8rem; width: auto; background: #007bff; color: #fff; border: none; border-radius: 4px;">調隊</button>
           <button id="btn-kick-${userDoc.id}" style="padding: 4px 8px; font-size: 0.8rem; width: auto; background: #dc3545; color: #fff; border: none; border-radius: 4px; margin-left: 4px;">剔除</button>
