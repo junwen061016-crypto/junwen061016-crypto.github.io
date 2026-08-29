@@ -245,25 +245,37 @@ function initAdminDashboard() {
       totalScans += (uData.scannedList || []).length;
 
       const li = document.createElement("li");
-      li.style.cssText = "display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 0.9rem;";
+      li.style.cssText = "display: flex; flex-direction: column; gap: 6px; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 0.9rem;";
       li.innerHTML = `
-        <span><b>${uData.email}</b> (${uData.teamId || '未分隊'}) - 已交友: ${(uData.scannedList || []).length}人</span>
-        <div>
+        <span><b>${uData.nickname || '(未設定暱稱)'}</b>　${uData.email}　(${uData.teamId || '未分隊'}) - 已交友: ${(uData.scannedList || []).length}人</span>
+        <div style="display: flex; gap: 4px; flex-wrap: wrap; align-items: center;">
+          <input id="nickname-input-${userDoc.id}" type="text" value="${uData.nickname || ''}" placeholder="輸入暱稱" style="padding: 4px; font-size: 0.8rem; width: 100px; display: inline-block;" />
+          <button id="btn-update-nickname-${userDoc.id}" style="padding: 4px 8px; font-size: 0.8rem; width: auto; background: #17a2b8; color: #fff; border: none; border-radius: 4px;">更新暱稱</button>
           <select id="select-team-${userDoc.id}" style="padding: 4px; font-size: 0.8rem; width: auto; display: inline-block;">
             <option value="team_1" ${uData.teamId==='team_1'?'selected':''}>第一小隊</option>
             <option value="team_2" ${uData.teamId==='team_2'?'selected':''}>第二小隊</option>
             <option value="team_3" ${uData.teamId==='team_3'?'selected':''}>第三小隊</option>
             <option value="team_4" ${uData.teamId==='team_4'?'selected':''}>第四小隊</option>
             <option value="team_5" ${uData.teamId==='team_5'?'selected':''}>第五小隊</option>
-            <option value="team_mystery" ${uData.teamId==='team_mtstery'?'selected':''}>神祕小隊</option>
+            <option value="team_mystery" ${uData.teamId==='team_mystery'?'selected':''}>🎭 神秘小隊</option>
           </select>
           <button id="btn-update-team-${userDoc.id}" style="padding: 4px 8px; font-size: 0.8rem; width: auto; background: #007bff; color: #fff; border: none; border-radius: 4px;">調隊</button>
-          <button id="btn-kick-${userDoc.id}" style="padding: 4px 8px; font-size: 0.8rem; width: auto; background: #dc3545; color: #fff; border: none; border-radius: 4px; margin-left: 4px;">剔除</button>
+          <button id="btn-kick-${userDoc.id}" style="padding: 4px 8px; font-size: 0.8rem; width: auto; background: #dc3545; color: #fff; border: none; border-radius: 4px;">剔除</button>
         </div>
       `;
       usersListEl.appendChild(li);
 
       setTimeout(() => {
+        const updateNicknameBtn = document.getElementById(`btn-update-nickname-${userDoc.id}`);
+        if (updateNicknameBtn) {
+          updateNicknameBtn.onclick = async () => {
+            const newNickname = document.getElementById(`nickname-input-${userDoc.id}`).value.trim();
+            if (!newNickname) return alert('暱稱不能是空白！');
+            await updateDoc(doc(db, "users", userDoc.id), { nickname: newNickname });
+            alert(`已成功更新暱稱為：${newNickname}`);
+          };
+        }
+
         const updateBtn = document.getElementById(`btn-update-team-${userDoc.id}`);
         if (updateBtn) {
           updateBtn.onclick = async () => {
