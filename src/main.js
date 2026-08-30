@@ -80,12 +80,22 @@ async function handleLogin() {
     try {
       const res = await createUserWithEmailAndPassword(auth, email, password);
       const teams = ['team_1', 'team_2', 'team_3', 'team_4', 'team_5'];
-      const randomTeam = teams[Math.floor(Math.random() * teams.length)];
+
+      // 用 Transaction 讀寫一份專門的計數器文件，確保就算多人同時註冊也不會分錯隊
+      const counterRef = doc(db, 'counters', 'teamAssignment');
+      const assignedTeam = await runTransaction(db, async (transaction) => {
+        const counterSnap = await transaction.get(counterRef);
+        const currentCount = counterSnap.exists() ? (counterSnap.data().count || 0) : 0;
+        const team = teams[currentCount % teams.length];
+
+        transaction.set(counterRef, { count: currentCount + 1 }, { merge: true });
+        return team;
+      });
 
       await setDoc(doc(db, 'users', res.user.uid), {
         email: email,
-        nickname: nickname || email.spilt('@')[0],
-        teamId: randomTeam,
+        nickname: nickname || email.split('@')[0],
+        teamId: assignedTeam,
         teamRevealed: true,
         scannedList: [],
         unlockedGoals: ['🌱 破冰者：初次啟航'],
