@@ -30,8 +30,11 @@ const TEAM_MAP = {
 const ALL_GOALS = [
   '🌱 破冰者：初次啟航',
   '🥉 社交新星：結交第 1 位朋友',
-  '🥈 破冰達人：結交 3 位朋友',
-  '🥇 社交王者：結交 5 位朋友',
+  '🥈 破冰達人：結交 5 位朋友',
+  '🥇 社交王者：結交 10 位朋友',
+  '💎 人氣達人：結交 20 位朋友',
+  '👑 社交傳奇：結交 30 位朋友',
+  '🏆 破冰之神：結交 40 位朋友',
 ];
 
 // --- 綁定靜態按鈕：不管 DOMContentLoaded 是否已經觸發過都能綁到 ---
@@ -532,17 +535,21 @@ async function handleScanLogic(decodedText) {
 // 計算成就清單與這次獲得的積分（純函式，不做任何 Firestore 寫入）
 function computeGoalsAndPoints(currentGoals, newFriendCount) {
   let goals = [...currentGoals];
-  let points = 50; // 每次成功交友的基本分
+  let points = 10; // 每次成功交友的基本分
 
-  if (newFriendCount === 1 && !goals.includes('🥉 社交新星：結交第 1 位朋友')) {
-    goals.push('🥉 社交新星：結交第 1 位朋友');
-    points += 10;
-  } else if (newFriendCount === 3 && !goals.includes('🥈 破冰達人：結交 3 位朋友')) {
-    goals.push('🥈 破冰達人：結交 3 位朋友');
-    points += 30;
-  } else if (newFriendCount === 5 && !goals.includes('🥇 社交王者：結交 5 位朋友')) {
-    goals.push('🥇 社交王者：結交 5 位朋友');
-    points += 50;
+  const milestones = [
+    { count: 1, goal: '🥉 社交新星：結交第 1 位朋友', bonus: 10 },
+    { count: 5, goal: '🥈 破冰達人：結交 5 位朋友', bonus: 30 },
+    { count: 10, goal: '🥇 社交王者：結交 10 位朋友', bonus: 50 },
+    { count: 20, goal: '💎 人氣達人：結交 20 位朋友', bonus: 80 },
+    { count: 30, goal: '👑 社交傳奇：結交 30 位朋友', bonus: 120 },
+    { count: 40, goal: '🏆 破冰之神：結交 40 位朋友', bonus: 200 },
+  ];
+
+  const matched = milestones.find(m => m.count === newFriendCount);
+  if (matched && !goals.includes(matched.goal)) {
+    goals.push(matched.goal);
+    points += matched.bonus;
   }
 
   return { goals, points };
