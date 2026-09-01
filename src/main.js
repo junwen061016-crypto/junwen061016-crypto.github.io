@@ -23,8 +23,8 @@ let lastScannedAt = 0;
 const SCAN_COOLDOWN_MS = 3000;
 
 const TEAM_MAP = {
-  team_1: '第一小隊 ', team_2: '第二小隊 ', team_3: '第三小隊 ',
-  team_4: '第四小隊 ', team_5: '第五小隊 ', team_mystery: '神祕小隊',
+  team_1: '第一小隊 🦁', team_2: '第二小隊 🐯', team_3: '第三小隊 🦅',
+  team_4: '第四小隊 🦊', team_5: '第五小隊 🐼', team_mystery: '神祕小隊 🎭',
 };
 
 const ALL_GOALS = [
@@ -68,8 +68,7 @@ async function ensureTeamDoc(teamId) {
   }
 }
 
-
-try async function handleLogin() {
+async function handleLogin() {
   const email = document.getElementById('email').value;
   const password = document.getElementById('password').value;
   const nickname = document.getElementById('nickname').value.trim();
@@ -95,7 +94,7 @@ try async function handleLogin() {
         scannedList: [],
         unlockedGoals: ['🌱 破冰者：初次啟航'],
       });
-      
+
       await set(ref(rtdb, `users/${res.user.uid}/bingoData`), {
         answers: Array(25).fill(""),
         isLocked: false,
@@ -104,7 +103,7 @@ try async function handleLogin() {
       });
 
       // 確保排行榜一開始就看得到這個小隊
-      await ensureTeamDoc(randomTeam);
+      await ensureTeamDoc(selectedTeam);
 
     } catch (createErr) {
       alert('登入/註冊失敗：' + createErr.message);
@@ -152,10 +151,9 @@ function initUserData(uid) {
 
     document.getElementById('profile-email-display').innerText = data.nickname || data.email;
 
-    const lines = window.currentBingoLines || 0;
     const teamDisplayEl = document.getElementById('profile-team-display');
     if (teamDisplayEl) {
-     teamDisplayE1.innerText=`所屬小隊：${TEAM_MAP[data.teamId]||data.teamId}`;
+      teamDisplayEl.innerText = `所屬小隊：${TEAM_MAP[data.teamId] || data.teamId}`;
     }
 
     document.getElementById('stat-scan-count').innerText = (data.scannedList || []).length;
@@ -366,7 +364,7 @@ function initLeaderboard() {
       return;
     }
     snapshot.forEach((docSnap) => {
-      if(docSnap === 'team_mystery') return;
+      if (docSnap.id === 'team_mystery') return;
       const data = docSnap.data();
       const li = document.createElement('li');
       li.innerHTML = `<span>${TEAM_MAP[docSnap.id] || docSnap.id}</span> <strong>${data.score || 0} 分</strong>`;
@@ -513,6 +511,8 @@ async function handleScanLogic(decodedText) {
       }
 
       if (hasNewMatch) {
+        const previousMyLines = myBingoData.lines || 0;
+        const previousOtherLines = targetBingoData.lines || 0;
         const myLines = calculateBingoLines(updatedMatched);
         const otherLines = calculateBingoLines(otherUpdatedMatched);
 
@@ -523,6 +523,7 @@ async function handleScanLogic(decodedText) {
 
         await awardBingoBonusIfNeeded(myUid, previousMyLines, myLines);
         await awardBingoBonusIfNeeded(otherUid, previousOtherLines, otherLines);
+
         alert("掃描成功！(噴花 噴花)");
         return;
       }
@@ -531,8 +532,6 @@ async function handleScanLogic(decodedText) {
 
   alert(resultMessage);
 }
-
- 
 
 // 計算成就清單與這次獲得的積分（純函式，不做任何 Firestore 寫入）
 function computeGoalsAndPoints(currentGoals, newFriendCount) {
@@ -556,7 +555,8 @@ function computeGoalsAndPoints(currentGoals, newFriendCount) {
 
   return { goals, points };
 }
-    // 賓果連線達成 5 條時，幫玩家所屬小隊加分（只在「剛好跨過門檻」的那一刻加一次，不會重複加）
+
+// 賓果連線達成 5 條時，幫玩家所屬小隊加分（只在「剛好跨過門檻」的那一刻加一次，不會重複加）
 const BINGO_BONUS_THRESHOLD = 5;
 const BINGO_BONUS_POINTS = 100;
 
@@ -608,7 +608,6 @@ async function resetPlayerBingoData(uid) {
 
   await set(ref(rtdb, `users/${uid}/bingoData`), resetData);
 
-
   alert('🔄 賓果遊戲已重置，請重新填寫答案！');
 }
 
@@ -625,7 +624,7 @@ onSnapshot(doc(db, 'gameStatus', 'global'), (docSnap) => {
       if (currentUserId) resetPlayerBingoData(currentUserId);
     }
   }
-  
+
   // 賓果遊戲開關（可逆）
   const bingoGrid = document.getElementById('bingo-grid');
   if (bingoGrid) {
