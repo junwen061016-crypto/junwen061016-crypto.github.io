@@ -68,16 +68,8 @@ async function ensureTeamDoc(teamId) {
   }
 }
 
-async function handleLogin() {
-  const email = document.getElementById('email').value;
-  const password = document.getElementById('password').value;
-  const nickname = document.getElementById('nickname').value.trim();
-  if (!email || !password) return alert('請輸入完整資料');
 
-  try {
-    await signInWithEmailAndPassword(auth, email, password);
-  } catch (err) {
-    try async function handleLogin() {
+try async function handleLogin() {
   const email = document.getElementById('email').value;
   const password = document.getElementById('password').value;
   const nickname = document.getElementById('nickname').value.trim();
