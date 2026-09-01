@@ -23,8 +23,8 @@ let lastScannedAt = 0;
 const SCAN_COOLDOWN_MS = 3000;
 
 const TEAM_MAP = {
-  team_1: '第一小隊 🦁', team_2: '第二小隊 🐯', team_3: '第三小隊 🦅',
-  team_4: '第四小隊 🦊', team_5: '第五小隊 🐼', team_mystery: '神祕小隊',
+  team_1: '第一小隊 ', team_2: '第二小隊 ', team_3: '第三小隊 ',
+  team_4: '第四小隊 ', team_5: '第五小隊 ', team_mystery: '神祕小隊',
 };
 
 const ALL_GOALS = [
@@ -77,30 +77,33 @@ async function handleLogin() {
   try {
     await signInWithEmailAndPassword(auth, email, password);
   } catch (err) {
+    try async function handleLogin() {
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+  const nickname = document.getElementById('nickname').value.trim();
+  const selectedTeam = document.getElementById('team-select').value;
+  if (!email || !password) return alert('請輸入完整資料');
+
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (err) {
     try {
+      if (!selectedTeam) {
+        alert('首次註冊請選擇你的小隊！');
+        return;
+      }
+
       const res = await createUserWithEmailAndPassword(auth, email, password);
-      const teams = ['team_1', 'team_2', 'team_3', 'team_4', 'team_5'];
-
-      // 用 Transaction 讀寫一份專門的計數器文件，確保就算多人同時註冊也不會分錯隊
-      const counterRef = doc(db, 'counters', 'teamAssignment');
-      const assignedTeam = await runTransaction(db, async (transaction) => {
-        const counterSnap = await transaction.get(counterRef);
-        const currentCount = counterSnap.exists() ? (counterSnap.data().count || 0) : 0;
-        const team = teams[currentCount % teams.length];
-
-        transaction.set(counterRef, { count: currentCount + 1 }, { merge: true });
-        return team;
-      });
 
       await setDoc(doc(db, 'users', res.user.uid), {
         email: email,
         nickname: nickname || email.split('@')[0],
-        teamId: assignedTeam,
+        teamId: selectedTeam,
         teamRevealed: true,
         scannedList: [],
         unlockedGoals: ['🌱 破冰者：初次啟航'],
       });
-
+      
       await set(ref(rtdb, `users/${res.user.uid}/bingoData`), {
         answers: Array(25).fill(""),
         isLocked: false,
@@ -160,9 +163,7 @@ function initUserData(uid) {
     const lines = window.currentBingoLines || 0;
     const teamDisplayEl = document.getElementById('profile-team-display');
     if (teamDisplayEl) {
-      teamDisplayEl.innerText = lines >= 5
-        ? `所屬小隊：${TEAM_MAP[data.teamId] || data.teamId}`
-        : `所屬小隊：🔒 達成 5 條賓果連線後解鎖`;
+     teamDisplayE1.innerText=`所屬小隊：${TEAM_MAP[data.teamId]||data.teamId}`;
     }
 
     document.getElementById('stat-scan-count').innerText = (data.scannedList || []).length;
@@ -345,9 +346,6 @@ function calculateBingoLines(matchedArray) {
 }
 
 function updateTeamUnlockStatus(lines) {
-  window.currentBingoLines = lines;
-  if (window.currentUserId) initUserData(window.currentUserId);
-
   let teamInfoEl = document.getElementById("hidden-team-info");
   if (!teamInfoEl) {
     teamInfoEl = document.createElement("div");
@@ -357,10 +355,10 @@ function updateTeamUnlockStatus(lines) {
     if (gameSection) gameSection.appendChild(teamInfoEl);
   }
   if (lines >= 5) {
-    teamInfoEl.innerHTML = `🏆 恭喜達成 ${lines} 條線！小隊已解鎖：<span style="color:#d9534f;font-size:1.2rem;">神祕小隊</span>`;
+    teamInfoEl.innerHTML = `🏆 恭喜達成 ${lines} 條連線！`;
     teamInfoEl.style.border = "2px solid #ffc107";
   } else {
-    teamInfoEl.innerHTML = `🔒 目前已達成連線：${lines} / 5 條 (達成 5 條線即可解鎖神祕小隊)`;
+    teamInfoEl.innerHTML = `🎯 目前已達成連線：${lines} / 5 條`;
     teamInfoEl.style.border = "1px dashed #ccc";
   }
 }
@@ -531,6 +529,8 @@ async function handleScanLogic(decodedText) {
           update(ref(rtdb, `users/${otherUid}/bingoData`), { matched: otherUpdatedMatched, lines: otherLines })
         ]);
 
+        await awardBingoBonusIfNeeded(myUid, previousMyLines, myLines);
+        await awardBingoBonusIfNeeded(otherUid, previousOtherLines, otherLines);
         alert("掃描成功！(噴花 噴花)");
         return;
       }
@@ -563,6 +563,27 @@ function computeGoalsAndPoints(currentGoals, newFriendCount) {
   }
 
   return { goals, points };
+}
+    // 賓果連線達成 5 條時，幫玩家所屬小隊加分（只在「剛好跨過門檻」的那一刻加一次，不會重複加）
+const BINGO_BONUS_THRESHOLD = 5;
+const BINGO_BONUS_POINTS = 100;
+
+async function awardBingoBonusIfNeeded(uid, previousLines, newLines) {
+  if (previousLines < BINGO_BONUS_THRESHOLD && newLines >= BINGO_BONUS_THRESHOLD) {
+    const userSnap = await getDoc(doc(db, 'users', uid));
+    if (!userSnap.exists()) return;
+    const teamId = userSnap.data().teamId;
+    if (!teamId) return;
+
+    const teamRef = doc(db, 'teams', teamId);
+    const teamSnap = await getDoc(teamRef);
+    const currentScore = teamSnap.exists() ? (teamSnap.data().score || 0) : 0;
+
+    await setDoc(teamRef, {
+      score: currentScore + BINGO_BONUS_POINTS,
+      teamName: TEAM_MAP[teamId],
+    }, { merge: true });
+  }
 }
 
 // --- 全域賽事狀態監聽：新增邊緣觸發彈窗 + 可逆的 UI 開關 ---
